@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/../../includes/bootstrap.php';
+require __DIR__ . '/../includes/bootstrap.php';
 $user = require_role('admin');
 
 $upcoming = db()->query(
@@ -25,7 +25,7 @@ $pendingOrders = db()->query("SELECT COUNT(*) FROM orders WHERE status = 'pendin
 <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body>
-<?php require __DIR__ . '/../../includes/admin-nav.php'; ?>
+<?php require __DIR__ . '/../includes/admin-nav.php'; ?>
 
 <div class="wrap">
   <?php if ($msg = flash('success')): ?>

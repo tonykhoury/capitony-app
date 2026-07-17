@@ -6,26 +6,45 @@ pages (catch alerts, ordering, live view) come next.
 
 ## Folder structure
 
+# Capitony — Web App (Stage 1: Database + Auth + Roles)
+
+This is the first coded increment: the full database schema, and working
+login/dashboards for the **admin** and **captain** roles. Visitor-facing
+pages (catch alerts, ordering, live view) come next.
+
+## Folder structure
+
 ```
-capitony-app/
+capitony-app/                (this whole repo = your document root)
+├── index.php                 ← temporary landing page (redirects to admin login)
+├── .htaccess                 ← blocks dotfiles, .sql/.md/.env, directory listing
+├── admin/                     visitor-facing? no — staff pages
+├── captain/
+├── assets/css/app.css
 ├── config/
-│   ├── config.example.php   ← copy to config.php, fill in real values
-│   └── database.php         ← PDO connection helper
-├── includes/                ← shared PHP (auth, csrf, nav partials) — NOT web-accessible
-├── public/                  ← this is your web server's document root
-│   ├── admin/
-│   ├── captain/
-│   └── assets/css/app.css
+│   ├── .htaccess             ← blocks ALL direct web access to this folder
+│   ├── config.example.php    ← copy to config.php, fill in real values
+│   └── database.php
+├── includes/
+│   └── .htaccess             ← blocks ALL direct web access to this folder
 ├── scripts/
-│   └── create_admin.php     ← CLI-only, bootstraps the first admin
+│   └── .htaccess             ← blocks ALL direct web access to this folder
 └── sql/
-    └── schema.sql
+    └── .htaccess             ← blocks ALL direct web access to this folder
 ```
 
-**Important:** point your web server (Apache/Nginx vhost) at `public/` as
-the document root — `config/` and `includes/` must sit *outside* the
-publicly served folder. On Hostinger's hPanel, set the domain's document
-root to `capitony-app/public`.
+**This repo root is deployed as-is into `public_html`.** Rather than relying
+on getting a "deploy outside the web root" folder setting exactly right on
+Hostinger's Git tool (which isn't guaranteed to support that), every
+folder that must never be served directly (`config/`, `includes/`,
+`scripts/`, `sql/`) carries its own `.htaccess` with `Require all denied`.
+So even though those folders technically sit inside `public_html`, Apache
+refuses to serve any file inside them directly.
+
+### Hostinger Git deploy settings
+
+- **Root directory**: `public_html` (the default — deploy the whole repo there)
+- **Branch**: `main`
 
 ## Setup steps
 
@@ -33,6 +52,7 @@ root to `capitony-app/public`.
    ```
    mysql -u your_db_user -p your_db_name < sql/schema.sql
    ```
+
 
 2. **Configure the app**:
    ```
@@ -93,6 +113,8 @@ root to `capitony-app/public`.
 - All SQL goes through PDO prepared statements — no raw string
   concatenation into queries anywhere in this codebase; keep it that way
   as we add more pages.
-- `config.php` must never be committed or made web-accessible — it's in
-  `.gitignore`, and living outside `public/` means even a misconfigured
-  server can't serve it as plain text by direct URL.
+- `config.php` must never be committed — it's in `.gitignore`. It's also
+  protected at the web server level: `config/.htaccess` denies all direct
+  HTTP requests to that folder, so even though it's technically inside
+  the deployed document root, no request can retrieve it as plain text.
+  Same protection applies to `includes/`, `scripts/`, and `sql/`.

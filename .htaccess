@@ -1,0 +1,12 @@
+# Block access to dotfiles (.git, .gitignore, .htaccess itself, etc.)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Block direct access to source/config file types that should never be served as-is
+<FilesMatch "\.(sql|md|env|log)$">
+    Require all denied
+</FilesMatch>
+
+# Never allow directory listing
+Options -Indexes

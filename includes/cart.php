@@ -16,14 +16,20 @@ function cart_init(): void
     }
 }
 
-function cart_add(int $catchItemId, float $quantityKg): void
+function cart_add(int $catchItemId): void
 {
     cart_init();
     if (isset($_SESSION['cart'][$catchItemId])) {
-        $_SESSION['cart'][$catchItemId]['quantity_kg'] += $quantityKg;
-    } else {
-        $_SESSION['cart'][$catchItemId] = ['quantity_kg' => $quantityKg, 'method' => null, 'clean' => false, 'cook' => false];
+        return; // already in cart — it's a single fish, nothing to add more of
     }
+    $stmt = db()->prepare('SELECT weight_kg, weight_reserved_kg FROM catch_items WHERE id = ? AND status = "available"');
+    $stmt->execute([$catchItemId]);
+    $item = $stmt->fetch();
+    if (!$item) {
+        return; // no longer available — silently ignore
+    }
+    $remaining = (float)$item['weight_kg'] - (float)$item['weight_reserved_kg'];
+    $_SESSION['cart'][$catchItemId] = ['quantity_kg' => $remaining, 'method' => null, 'clean' => false, 'cook' => false];
 }
 
 function cart_remove(int $catchItemId): void

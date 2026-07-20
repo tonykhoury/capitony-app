@@ -50,7 +50,7 @@ if (is_post()) {
 
                 $subtotal = round($line['quantity_kg'] * (float)$item['price_per_kg_aed'], 2);
                 $total += $subtotal;
-                $verifiedLines[] = $line + ['subtotal' => $subtotal];
+                $verifiedLines[] = $line + ['subtotal' => $subtotal, 'reserved_before' => (float)$item['weight_reserved_kg']];
             }
 
             $groupStmt = $pdo->prepare(
@@ -74,11 +74,12 @@ if (is_post()) {
                     $line['subtotal'],
                 ]);
 
+                $newReserved = $line['reserved_before'] + $line['quantity_kg'];
                 $pdo->prepare(
-                    'UPDATE catch_items SET weight_reserved_kg = weight_reserved_kg + ?,
-                        status = IF(weight_reserved_kg + ? >= weight_kg, "sold_out", status)
+                    'UPDATE catch_items SET weight_reserved_kg = ?,
+                        status = IF(? >= weight_kg, "sold_out", status)
                      WHERE id = ?'
-                )->execute([$line['quantity_kg'], $line['quantity_kg'], $line['catch_item_id']]);
+                )->execute([$newReserved, $newReserved, $line['catch_item_id']]);
             }
 
             $pdo->commit();

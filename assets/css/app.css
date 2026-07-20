@@ -72,3 +72,45 @@ th{font-family:var(--mono); font-size:0.72rem; text-transform:uppercase; color:v
 .badge-live{background:var(--amber); color:var(--chalk);}
 .badge-scheduled{background:var(--foam-dim); color:var(--scale);}
 .badge-completed{background:#DDE6E1; color:#3E5C4E;}
+
+/* ---------- Visitor-facing shop/cart/checkout additions ---------- */
+.public-nav{
+  background:var(--sky-deep); color:var(--chalk); padding:14px 24px;
+  display:flex; justify-content:space-between; align-items:center;
+  border-bottom:3px solid var(--rope);
+}
+.public-nav a{color:var(--sky-pale); text-decoration:none; font-family:var(--display); font-size:0.8rem; letter-spacing:0.05em;}
+.public-nav .brand{font-family:var(--display); letter-spacing:0.06em; color:var(--chalk); font-size:1.1rem;}
+.cart-pill{
+  background:var(--amber); color:var(--chalk); border-radius:12px; padding:4px 10px;
+  font-family:var(--mono); font-size:0.75rem; margin-left:8px;
+}
+
+.product-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:18px;}
+.product-card{background:var(--chalk); border:1px solid var(--foam-dim); border-top:4px solid var(--sky); padding:16px;}
+.product-photo{aspect-ratio:4/3; background:var(--foam-dim); margin-bottom:12px; overflow:hidden;}
+.product-photo img{width:100%; height:100%; object-fit:cover;}
+.product-card h3{font-size:1.05rem; margin-bottom:2px; text-transform:none; letter-spacing:0;}
+.product-card .ar-name{font-size:0.95rem; color:var(--scale); direction:rtl; margin-bottom:6px;}
+.product-card .price{font-family:var(--display); color:var(--amber-dark); font-size:1.2rem; margin-bottom:6px;}
+.product-card .remaining{font-family:var(--mono); font-size:0.75rem; color:var(--scale); margin-bottom:12px;}
+
+.service-chip-group{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+.service-chip-group label{
+  display:flex; align-items:center; gap:6px; border:1px solid var(--foam-dim);
+  padding:8px 12px; border-radius:14px; font-family:var(--body); font-size:0.85rem;
+  text-transform:none; letter-spacing:0; cursor:pointer; margin-bottom:0;
+}
+.service-chip-group input{margin:0; width:auto;}
+
+.cart-line{
+  display:grid; grid-template-columns:70px 1fr auto; gap:14px; align-items:center;
+  padding:14px 0; border-bottom:1px solid var(--foam-dim);
+}
+.cart-line img{width:70px; height:52px; object-fit:cover;}
+.cart-line .meta{font-family:var(--mono); font-size:0.78rem; color:var(--scale);}
+
+.warning-box{
+  background:#FDF3E4; border-left:4px solid var(--amber); padding:12px 14px;
+  font-size:0.88rem; margin-bottom:16px;
+}

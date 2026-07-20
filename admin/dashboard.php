@@ -3,9 +3,10 @@ require __DIR__ . '/../includes/bootstrap.php';
 $user = require_role('admin');
 
 $upcoming = db()->query(
-    "SELECT t.*, u.name AS captain_name
+    "SELECT t.*, u.name AS captain_name, b.name AS boat_name_current
      FROM trips t
      LEFT JOIN users u ON u.id = t.captain_id
+     LEFT JOIN boats b ON b.id = t.boat_id
      WHERE t.status IN ('scheduled','live')
      ORDER BY t.departs_at ASC
      LIMIT 5"
@@ -45,7 +46,7 @@ $pendingOrders = db()->query("SELECT COUNT(*) FROM orders WHERE status = 'pendin
       <?php foreach ($upcoming as $trip): ?>
       <tr>
         <td><?= e(date('D, M j · g:i A', strtotime($trip['departs_at']))) ?></td>
-        <td><?= e($trip['boat_name']) ?></td>
+        <td><?= e($trip['boat_name_current'] ?? $trip['boat_name'] ?? '—') ?></td>
         <td><?= e($trip['captain_name'] ?? '— unassigned —') ?></td>
         <td><?= (int)$trip['total_seats'] ?></td>
         <td><span class="badge badge-<?= e($trip['status']) ?>"><?= e($trip['status']) ?></span></td>

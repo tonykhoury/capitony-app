@@ -36,3 +36,79 @@ function is_post(): bool
 {
     return $_SERVER['REQUEST_METHOD'] === 'POST';
 }
+
+/**
+ * Handles a single uploaded image: validates it's really an image,
+ * re-encodes it via GD (strips any embedded non-image payload — a
+ * standard defense against disguised file uploads), and saves it
+ * under /assets/uploads/{subfolder}/.
+ *
+ * Returns the relative web path (e.g. "/assets/uploads/species/abc123.jpg")
+ * on success, or null if no file was uploaded. Throws RuntimeException
+ * with a user-safe message on validation failure.
+ */
+function handle_image_upload(string $fieldName, string $subfolder): ?string
+{
+    if (empty($_FILES[$fieldName]['name']) || $_FILES[$fieldName]['error'] === UPLOAD_ERR_NO_FILE) {
+        return null; // no file chosen — fine, caller decides if that's required
+    }
+
+    $file = $_FILES[$fieldName];
+
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Upload failed. Please try a different image.');
+    }
+
+    if ($file['size'] > 5 * 1024 * 1024) {
+        throw new RuntimeException('Image is too large — please keep it under 5MB.');
+    }
+
+    $info = @getimagesize($file['tmp_name']);
+    if ($info === false) {
+        throw new RuntimeException('That file doesn\'t look like a valid image.');
+    }
+
+    $mime = $info['mime'];
+    $allowed = ['image/jpeg' => 'imagecreatefromjpeg', 'image/png' => 'imagecreatefrompng', 'image/webp' => 'imagecreatefromwebp'];
+    if (!isset($allowed[$mime])) {
+        throw new RuntimeException('Please upload a JPG, PNG, or WEBP image.');
+    }
+
+    $createFn = $allowed[$mime];
+    $srcImage = @$createFn($file['tmp_name']);
+    if (!$srcImage) {
+        throw new RuntimeException('Could not process that image. Please try another file.');
+    }
+
+    $uploadDir = __DIR__ . '/../assets/uploads/' . $subfolder;
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $filename = bin2hex(random_bytes(12)) . '.jpg';
+    $destPath = $uploadDir . '/' . $filename;
+
+    // Flatten transparency onto white before saving as JPEG (PNG/WEBP may have alpha).
+    $width = imagesx($srcImage);
+    $height = imagesy($srcImage);
+    $flat = imagecreatetruecolor($width, $height);
+    imagefill($flat, 0, 0, imagecolorallocate($flat, 255, 255, 255));
+    imagecopy($flat, $srcImage, 0, 0, 0, 0, $width, $height);
+    imagejpeg($flat, $destPath, 85);
+    imagedestroy($srcImage);
+    imagedestroy($flat);
+
+    return '/assets/uploads/' . $subfolder . '/' . $filename;
+}
+
+/** Deletes a previously uploaded image file given its web path, if set. */
+function delete_uploaded_image(?string $webPath): void
+{
+    if (!$webPath) {
+        return;
+    }
+    $fullPath = __DIR__ . '/../' . ltrim($webPath, '/');
+    if (is_file($fullPath) && str_contains($fullPath, '/assets/uploads/')) {
+        @unlink($fullPath);
+    }
+}

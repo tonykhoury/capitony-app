@@ -1,11 +1,8 @@
 <?php
 /**
- * Placeholder root page. The visitor-facing site (trip browsing, catch
- * shop, live view) hasn't been built yet — only admin/captain tooling
- * exists so far. Redirecting to admin login for now so the domain
- * resolves to something functional instead of a blank 403.
- *
- * Replace this with the real homepage once the visitor pages are built.
+ * Root landing page — sends visitors straight to the Catch of the Day shop.
+ * A richer homepage (trip schedule, live session, etc.) can replace this
+ * later; for now the shop is the actual product.
  */
-header('Location: /admin/login.php');
+header('Location: /shop.php');
 exit;

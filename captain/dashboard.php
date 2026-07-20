@@ -47,7 +47,9 @@ if (is_post()) {
 }
 
 $trips = db()->prepare(
-    "SELECT * FROM trips WHERE captain_id = ? AND status IN ('scheduled','live')
+    "SELECT t.*, b.name AS boat_name_current FROM trips t
+     LEFT JOIN boats b ON b.id = t.boat_id
+     WHERE t.captain_id = ? AND t.status IN ('scheduled','live')
      ORDER BY departs_at ASC"
 );
 $trips->execute([$user['id']]);
@@ -87,7 +89,7 @@ foreach ($liveSessions->fetchAll() as $ls) {
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
       <div>
-        <h2 style="font-size:1.1rem; margin-bottom:4px;"><?= e($trip['boat_name']) ?></h2>
+        <h2 style="font-size:1.1rem; margin-bottom:4px;"><?= e($trip['boat_name_current'] ?? $trip['boat_name'] ?? 'Boat') ?></h2>
         <p style="color:var(--scale); font-family:var(--mono); font-size:0.82rem;">
           <?= e(date('D, M j · g:i A', strtotime($trip['departs_at']))) ?> · <?= (int)$trip['total_seats'] ?> seats
         </p>

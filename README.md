@@ -1,26 +1,22 @@
-# Capitony — Web App (Stage 1: Database + Auth + Roles)
+# Capitony — Web App
 
-This is the first coded increment: the full database schema, and working
-login/dashboards for the **admin** and **captain** roles. Visitor-facing
-pages (catch alerts, ordering, live view) come next.
-
-## Folder structure
-
-# Capitony — Web App (Stage 1: Database + Auth + Roles)
-
-This is the first coded increment: the full database schema, and working
-login/dashboards for the **admin** and **captain** roles. Visitor-facing
-pages (catch alerts, ordering, live view) come next.
+Full database schema, admin/captain auth, trip & species & boat management,
+and the visitor-facing Catch of the Day shop with cart/checkout.
 
 ## Folder structure
 
 ```
 capitony-app/                (this whole repo = your document root)
-├── index.php                 ← temporary landing page (redirects to admin login)
+├── index.php                 ← redirects to /shop.php
+├── shop.php                  ← visitor: browse & add catch to cart
+├── cart.php                  ← visitor: set services, review cart
+├── checkout.php               ← visitor: place order
 ├── .htaccess                 ← blocks dotfiles, .sql/.md/.env, directory listing
-├── admin/                     visitor-facing? no — staff pages
-├── captain/
-├── assets/css/app.css
+├── admin/                     staff pages (dashboard, trips, species, boats, captains)
+├── captain/                   staff pages (dashboard, catch posting)
+├── assets/
+│   ├── css/app.css
+│   └── uploads/               species/boat/catch photos — .htaccess blocks script execution
 ├── config/
 │   ├── .htaccess             ← blocks ALL direct web access to this folder
 │   ├── config.example.php    ← copy to config.php, fill in real values
@@ -30,91 +26,91 @@ capitony-app/                (this whole repo = your document root)
 ├── scripts/
 │   └── .htaccess             ← blocks ALL direct web access to this folder
 └── sql/
-    └── .htaccess             ← blocks ALL direct web access to this folder
+    ├── .htaccess              ← blocks ALL direct web access to this folder
+    ├── schema.sql             ← full schema, only for a brand-new database
+    └── migrations/            ← run these in order on an existing database
 ```
 
-**This repo root is deployed as-is into `public_html`.** Rather than relying
-on getting a "deploy outside the web root" folder setting exactly right on
-Hostinger's Git tool (which isn't guaranteed to support that), every
-folder that must never be served directly (`config/`, `includes/`,
-`scripts/`, `sql/`) carries its own `.htaccess` with `Require all denied`.
-So even though those folders technically sit inside `public_html`, Apache
-refuses to serve any file inside them directly.
+**This repo root is deployed as-is into `public_html`.** Every folder that
+must never be served directly (`config/`, `includes/`, `scripts/`, `sql/`)
+carries its own `.htaccess` with `Require all denied`, so even though those
+folders are technically inside `public_html`, Apache refuses to serve
+anything from them.
 
 ### Hostinger Git deploy settings
 
-- **Root directory**: `public_html` (the default — deploy the whole repo there)
+- **Root directory**: `public_html` (the default)
 - **Branch**: `main`
 
-## Setup steps
+## Setup — brand-new database
 
-1. **Create the database** in hPanel (or `mysql` CLI), then import the schema:
-   ```
-   mysql -u your_db_user -p your_db_name < sql/schema.sql
-   ```
+1. Create the database, import `sql/schema.sql` (phpMyAdmin → Import, or
+   `mysql -u user -p dbname < sql/schema.sql` if you have SSH).
+2. `cp config/config.example.php config/config.php` and fill in real values.
+3. Create the first admin: `php scripts/create_admin.php` via SSH, **or**,
+   if you don't have SSH, temporarily restore `setup-admin.php` at the repo
+   root (ask for it — it's a one-time web-based bootstrap that disables
+   itself after the first admin is created), visit
+   `https://yourdomain/setup-admin.php`, then delete the file again.
+4. Log in at `/admin/login.php`, add captains under **Captains**, add a
+   boat under **Boats** before scheduling any trips.
 
+## Setup — applying a new migration to an existing database
 
-2. **Configure the app**:
-   ```
-   cp config/config.example.php config/config.php
-   ```
-   Edit `config/config.php` with your real DB credentials and (later) Twilio keys.
+Each file under `sql/migrations/` is numbered and safe to run once. Since
+most Hostinger plans don't include SSH by default:
 
-3. **Create the first admin account** via SSH:
-   ```
-   php scripts/create_admin.php
-   ```
-   Follow the prompts. This is the only way to create the first admin —
-   there's no public sign-up form, on purpose.
+1. hPanel → Databases → phpMyAdmin → select your database → **SQL** tab
+2. Open the migration file (e.g. `sql/migrations/002_species_boats_cart.sql`)
+   in File Manager's editor, copy its contents
+3. Paste into phpMyAdmin's SQL tab and click **Go**
+4. If a statement errors with "duplicate column" or "table already exists,"
+   that piece already applied — safe to ignore and continue with the rest
 
-4. **Log in**:
-   - Admin: `https://capitony.live/admin/login.php`
-   - Captain: `https://capitony.live/captain/login.php`
+## What's wired up
 
-5. As admin, go to **Captains** and create an account for each captain.
-   They should change their password after first login (password-change
-   flow is a small addition for the next pass — flag if you want it
-   prioritized).
-
-## What's wired up in this stage
-
-- **Roles & auth**: session-based login, bcrypt password hashing, CSRF
-  protection on every form, brute-force lockout (5 failed attempts → 15
-  minute lock).
-- **Admin**: schedule trips (date, boat, seats, price, assign a captain),
-  manage species + default pricing.
-- **Captain**: see assigned trips, start a trip, create a live session
-  record, mark a trip complete.
+- **Roles & auth**: session-based login, bcrypt hashing, CSRF protection,
+  brute-force lockout (5 failed attempts → 15 minute lock)
+- **Admin**: trips (create/edit/delete while still scheduled), species
+  (name, Arabic name, latin name, price, photo — create/edit/delete/hide),
+  boats (name, photo — create/edit/delete/hide), captain accounts
+- **Captain**: start a trip, post Catch of the Day listings (species,
+  weight, price, photo), pull a listing, go live (DB record only — see
+  below), mark trip complete
+- **Visitor shop**: browse live catch listings with photos and Arabic
+  names, add to cart with a quantity
+- **Cart**: session-based (no visitor accounts). Set pickup/delivery +
+  clean/cook once and apply to every item in the cart with a clear warning
+  about what that does, or override any single item afterward
+- **Checkout**: re-verifies stock inside a DB transaction (so two people
+  can't both buy the last kilo of grouper), creates an `order_groups`
+  receipt plus one `orders` line per fish, decrements remaining stock
 
 ## What's stubbed, not fully built yet
 
 - **Live video**: "Go Live" creates a database record with a stream key,
-  but nothing is actually receiving video yet. Since you're on a VPS/Cloud
-  plan, the next step is installing an RTMP ingest server (`nginx` with
-  the `nginx-rtmp-module`, or a hosted alternative like Cloudflare Stream)
-  that the captain's phone/OBS pushes to using that stream key, and that
-  serves it back out as HLS for the visitor-facing player.
-- **WhatsApp catch alerts**: the `catch_alerts` and `alert_notifications`
-  tables exist, but the code that checks new catch listings against open
-  alerts and sends via Twilio hasn't been written yet — that's the
-  logical next piece.
-- **Captain catch-posting page** (`/captain/catch.php`) is linked from the
-  dashboard but not built yet — needed before alerts can trigger off it.
-- **Visitor-facing pages** (browsing trips, requesting a seat, buying the
-  catch, subscribing to alerts, live view + chat) — none of this exists
-  yet; everything so far is admin/captain tooling.
+  but nothing is actually receiving video yet — needs an RTMP ingest
+  server (`nginx-rtmp-module`, or a hosted alternative) on the VPS.
+- **WhatsApp catch alerts**: `catch_alerts` / `alert_notifications` tables
+  exist; the matching + Twilio send logic hasn't been written yet.
+- **Live session chat** (text/voice notes during a broadcast): schema
+  exists (`chat_messages`), no UI yet.
+- **Trip requests** (visitors asking to join a fishing trip): schema
+  exists (`trip_requests`), no visitor-facing page yet.
 - **Password change / forgot password** for staff accounts.
+- **Admin order management view** — orders are created correctly by
+  checkout, but there's no admin page yet to see/confirm/fulfill them.
 
 ## Security notes worth knowing
 
-- Sessions use `httponly`, `samesite=Lax` cookies, and `secure` cookies
-  once `APP_ENV` is `production` (requires HTTPS — get this from
-  Hostinger's free SSL before going live).
-- All SQL goes through PDO prepared statements — no raw string
-  concatenation into queries anywhere in this codebase; keep it that way
-  as we add more pages.
-- `config.php` must never be committed — it's in `.gitignore`. It's also
-  protected at the web server level: `config/.htaccess` denies all direct
-  HTTP requests to that folder, so even though it's technically inside
-  the deployed document root, no request can retrieve it as plain text.
-  Same protection applies to `includes/`, `scripts/`, and `sql/`.
+- Sessions use `httponly`, `samesite=Lax`, and `secure` cookies once
+  `APP_ENV` is `production` (requires active HTTPS).
+- All SQL goes through PDO prepared statements throughout.
+- Uploaded images (species/boats/catch photos) are re-encoded via GD
+  before saving — this strips any non-image payload someone might try to
+  disguise as a photo — and the uploads folder blocks `.php` execution
+  as a second layer of defense.
+- `config.php` is never committed (`.gitignore`) and is blocked at the
+  web server level via `.htaccess`, same as `includes/`, `scripts/`, `sql/`.
+- Checkout stock checks happen inside a transaction with `FOR UPDATE`
+  row locking, so concurrent buyers can't oversell a limited catch.

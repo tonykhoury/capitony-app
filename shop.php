@@ -52,6 +52,8 @@ $cartIds = array_keys($_SESSION['cart'] ?? []);
   }
   .live-dot{width:8px; height:8px; border-radius:50%; background:var(--chalk); animation:pulse 1.6s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.6);}70%{box-shadow:0 0 0 8px rgba(255,255,255,0);}100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}}
+  .catch-time{font-family:var(--mono); font-size:0.72rem; color:var(--scale); margin:6px 0 12px;}
+  .catch-time .time-ago{color:var(--amber-dark); font-weight:600;}
 </style>
 </head>
 <body>
@@ -89,6 +91,9 @@ $cartIds = array_keys($_SESSION['cart'] ?? []);
       <?php if ($l['species_name_ar']): ?><div class="ar-name"><?= e($l['species_name_ar']) ?></div><?php endif; ?>
       <div class="remaining"><?= number_format($l['weight_kg'], 1) ?> kg</div>
       <div class="price">AED <?= number_format($l['price_per_kg_aed'] * $l['weight_kg'], 0) ?></div>
+      <div class="catch-time" data-posted-epoch="<?= strtotime($l['posted_at']) * 1000 ?>">
+        Caught <?= e(date('g:i A', strtotime($l['posted_at']))) ?> &middot; <span class="time-ago">just now</span>
+      </div>
 
       <?php if ($isSold): ?>
         <button class="btn btn-block" style="background:var(--foam-dim); color:var(--scale);" disabled>Sold</button>
@@ -105,5 +110,26 @@ $cartIds = array_keys($_SESSION['cart'] ?? []);
     <?php endforeach; ?>
   </div>
 </div>
+
+<script>
+function formatTimeAgo(ms) {
+  var mins = Math.max(0, Math.floor(ms / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  var hrs = Math.floor(mins / 60);
+  var remMins = mins % 60;
+  return hrs + 'h ' + remMins + 'm ago';
+}
+function updateCatchTimes() {
+  document.querySelectorAll('.catch-time').forEach(function (el) {
+    var postedEpoch = parseInt(el.getAttribute('data-posted-epoch'), 10);
+    var elapsed = Date.now() - postedEpoch;
+    var span = el.querySelector('.time-ago');
+    if (span) span.textContent = formatTimeAgo(elapsed);
+  });
+}
+updateCatchTimes();
+setInterval(updateCatchTimes, 30000); // refresh every 30s — minute-level precision doesn't need more
+</script>
 </body>
 </html>

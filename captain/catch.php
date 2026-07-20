@@ -115,12 +115,15 @@ $catchItems = $catchItems->fetchAll();
   <div class="card">
     <h2 style="font-size:1.1rem;">Today's Postings</h2>
     <table>
-      <tr><th>Species</th><th>Weight</th><th>Price/kg</th><th>Status</th><th></th></tr>
+      <tr><th>Species</th><th>Weight</th><th>Price/kg</th><th>Posted</th><th>Status</th><th></th></tr>
       <?php foreach ($catchItems as $ci): ?>
       <tr>
         <td><?= e($ci['species_name']) ?></td>
         <td><?= number_format($ci['weight_kg'], 1) ?> kg</td>
         <td>AED <?= number_format($ci['price_per_kg_aed'], 0) ?></td>
+        <td class="catch-time-cell" data-posted-epoch="<?= strtotime($ci['posted_at']) * 1000 ?>">
+          <?= e(date('g:i A', strtotime($ci['posted_at']))) ?> &middot; <span class="time-ago">just now</span>
+        </td>
         <td><?= e($ci['status']) ?></td>
         <td>
           <?php if ($ci['status'] === 'available'): ?>
@@ -136,7 +139,7 @@ $catchItems = $catchItems->fetchAll();
       </tr>
       <?php endforeach; ?>
       <?php if (!$catchItems): ?>
-      <tr><td colspan="5" style="color:var(--scale);">Nothing posted yet.</td></tr>
+      <tr><td colspan="6" style="color:var(--scale);">Nothing posted yet.</td></tr>
       <?php endif; ?>
     </table>
   </div>
@@ -149,6 +152,23 @@ document.getElementById('species_id').addEventListener('change', function () {
   var price = opt.getAttribute('data-price');
   if (price) document.getElementById('price_per_kg_aed').value = Math.round(parseFloat(price));
 });
+
+function formatTimeAgo(ms) {
+  var mins = Math.max(0, Math.floor(ms / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  var hrs = Math.floor(mins / 60);
+  return hrs + 'h ' + (mins % 60) + 'm ago';
+}
+function updateCatchTimes() {
+  document.querySelectorAll('.catch-time-cell').forEach(function (el) {
+    var elapsed = Date.now() - parseInt(el.getAttribute('data-posted-epoch'), 10);
+    var span = el.querySelector('.time-ago');
+    if (span) span.textContent = formatTimeAgo(elapsed);
+  });
+}
+updateCatchTimes();
+setInterval(updateCatchTimes, 30000);
 </script>
 </body>
 </html>

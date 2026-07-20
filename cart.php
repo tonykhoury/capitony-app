@@ -27,9 +27,14 @@ if (is_post()) {
 }
 
 $lines = cart_get_lines();
-$total = array_reduce($lines, fn($sum, $l) => $sum + $l['subtotal'], 0.0);
+$itemsTotal = array_reduce($lines, fn($sum, $l) => $sum + $l['subtotal'], 0.0);
+$deliveryFee = cart_delivery_fee();
+$grandTotal = cart_total();
 $editingItem = isset($_GET['edit_item']) ? (int)$_GET['edit_item'] : null;
 $readyForCheckout = cart_all_have_services();
+$cleanPrice = get_setting('clean_price_per_kg_aed', '0');
+$cookPrice = get_setting('cook_price_per_kg_aed', '0');
+$deliveryPrice = get_setting('delivery_fee_aed', '0');
 
 function service_summary(array $line): string
 {
@@ -72,11 +77,11 @@ function service_summary(array $line): string
       <input type="hidden" name="action" value="apply_all">
       <div class="service-chip-group">
         <label><input type="radio" name="method" value="pickup" checked> Pickup at Harbor</label>
-        <label><input type="radio" name="method" value="deliver"> Home Delivery</label>
+        <label><input type="radio" name="method" value="deliver"> Home Delivery (AED <?= number_format((float)$deliveryPrice, 0) ?>/order)</label>
       </div>
       <div class="service-chip-group">
-        <label><input type="checkbox" name="clean"> Clean the fish</label>
-        <label><input type="checkbox" name="cook"> Cook the fish</label>
+        <label><input type="checkbox" name="clean"> Clean the fish (AED <?= number_format((float)$cleanPrice, 0) ?>/kg)</label>
+        <label><input type="checkbox" name="cook"> Cook the fish (AED <?= number_format((float)$cookPrice, 0) ?>/kg)</label>
       </div>
       <button type="submit" class="btn btn-amber">Apply to All Items</button>
     </form>
@@ -95,6 +100,9 @@ function service_summary(array $line): string
           <strong><?= e($line['species_name']) ?></strong> — <?= number_format($line['quantity_kg'], 1) ?> kg
           <div class="meta">
             AED <?= number_format($line['subtotal'], 2) ?>
+            <?php if ($line['clean_fee'] > 0 || $line['cook_fee'] > 0): ?>
+              (fish AED <?= number_format($line['fish_cost'], 2) ?><?php if ($line['clean_fee'] > 0): ?> + clean AED <?= number_format($line['clean_fee'], 2) ?><?php endif; ?><?php if ($line['cook_fee'] > 0): ?> + cook AED <?= number_format($line['cook_fee'], 2) ?><?php endif; ?>)
+            <?php endif; ?>
             &middot;
             <?= $line['method'] ? e(service_summary($line)) : '— no service selected yet —' ?>
           </div>
@@ -132,8 +140,14 @@ function service_summary(array $line): string
       <?php endif; ?>
     <?php endforeach; ?>
 
-    <div style="text-align:right; margin-top:16px; font-family:var(--display); font-size:1.3rem; color:var(--sky-deep);">
-      Total: AED <?= number_format($total, 2) ?>
+    <div style="text-align:right; margin-top:16px;">
+      <div style="color:var(--scale); font-size:0.88rem;">Items: AED <?= number_format($itemsTotal, 2) ?></div>
+      <?php if ($deliveryFee > 0): ?>
+        <div style="color:var(--scale); font-size:0.88rem;">Delivery (once per order): AED <?= number_format($deliveryFee, 2) ?></div>
+      <?php endif; ?>
+      <div style="font-family:var(--display); font-size:1.3rem; color:var(--sky-deep); margin-top:4px;">
+        Total: AED <?= number_format($grandTotal, 2) ?>
+      </div>
     </div>
   </div>
 

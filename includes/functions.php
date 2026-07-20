@@ -63,6 +63,27 @@ function utc_to_local(string $utcDatetime, string $format = 'g:i A'): string
     return $dt->format($format);
 }
 
+/** Simple key/value settings, cached per-request to avoid repeat queries. */
+function get_setting(string $key, string $default = ''): string
+{
+    static $cache = [];
+    if (!array_key_exists($key, $cache)) {
+        $stmt = db()->prepare('SELECT setting_value FROM settings WHERE setting_key = ?');
+        $stmt->execute([$key]);
+        $value = $stmt->fetchColumn();
+        $cache[$key] = $value !== false ? $value : $default;
+    }
+    return $cache[$key];
+}
+
+function set_setting(string $key, string $value): void
+{
+    db()->prepare(
+        'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+    )->execute([$key, $value]);
+}
+
 /**
  * Handles a single uploaded image: validates it's really an image,
  * re-encodes it via GD (strips any embedded non-image payload — a

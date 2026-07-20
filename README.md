@@ -85,6 +85,11 @@ most Hostinger plans don't include SSH by default:
 - **Checkout**: re-verifies stock inside a DB transaction (so two people
   can't both buy the last kilo of grouper), creates an `order_groups`
   receipt plus one `orders` line per fish, decrements remaining stock
+- **Service pricing**: admin sets Clean/Cook price per kg and a flat
+  Delivery fee per order under **Service Pricing**. Recalculated
+  server-side at checkout from current settings (never trusted from the
+  cart session), and the actual amount charged is stored on the order —
+  changing a price later never rewrites past orders.
 
 ## What's stubbed, not fully built yet
 

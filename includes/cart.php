@@ -93,6 +93,11 @@ function cart_get_lines(): array
         $item = $rows[$catchItemId];
         $remaining = (float)$item['weight_kg'] - (float)$item['weight_reserved_kg'];
         $qty = min($cartLine['quantity_kg'], max($remaining, 0));
+
+        $fishCost = round($qty * (float)$item['price_per_kg_aed'], 2);
+        $cleanFee = $cartLine['clean'] ? round($qty * (float)get_setting('clean_price_per_kg_aed', '0'), 2) : 0.0;
+        $cookFee = $cartLine['cook'] ? round($qty * (float)get_setting('cook_price_per_kg_aed', '0'), 2) : 0.0;
+
         $lines[] = [
             'catch_item_id'   => (int)$catchItemId,
             'species_name'    => $item['species_name'],
@@ -101,7 +106,10 @@ function cart_get_lines(): array
             'price_per_kg'    => (float)$item['price_per_kg_aed'],
             'quantity_kg'     => $qty,
             'remaining_kg'    => $remaining,
-            'subtotal'        => round($qty * (float)$item['price_per_kg_aed'], 2),
+            'fish_cost'       => $fishCost,
+            'clean_fee'       => $cleanFee,
+            'cook_fee'        => $cookFee,
+            'subtotal'        => round($fishCost + $cleanFee + $cookFee, 2),
             'method'          => $cartLine['method'],
             'clean'           => $cartLine['clean'],
             'cook'            => $cartLine['cook'],
@@ -110,9 +118,21 @@ function cart_get_lines(): array
     return $lines;
 }
 
+/** Flat delivery fee, charged once per order if ANY line is set to deliver. */
+function cart_delivery_fee(): float
+{
+    foreach (cart_get_lines() as $line) {
+        if ($line['method'] === 'deliver') {
+            return (float)get_setting('delivery_fee_aed', '0');
+        }
+    }
+    return 0.0;
+}
+
 function cart_total(): float
 {
-    return array_reduce(cart_get_lines(), fn($sum, $l) => $sum + $l['subtotal'], 0.0);
+    $itemsTotal = array_reduce(cart_get_lines(), fn($sum, $l) => $sum + $l['subtotal'], 0.0);
+    return round($itemsTotal + cart_delivery_fee(), 2);
 }
 
 function cart_count(): int

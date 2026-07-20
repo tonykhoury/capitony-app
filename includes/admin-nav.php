@@ -5,6 +5,7 @@
     <a href="/admin/trips.php">Trips & Schedule</a>
     <a href="/admin/species.php">Species & Pricing</a>
     <a href="/admin/boats.php">Boats</a>
+    <a href="/admin/settings.php">Service Pricing</a>
     <a href="/admin/captains.php">Captains</a>
     <a href="/admin/logout.php">Log Out (<?= e($user['name']) ?>)</a>
   </nav>

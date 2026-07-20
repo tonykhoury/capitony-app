@@ -32,11 +32,19 @@ if (is_post()) {
         try {
             $pdo->beginTransaction();
 
+            $cleanPricePerKg = (float)get_setting('clean_price_per_kg_aed', '0');
+            $cookPricePerKg = (float)get_setting('cook_price_per_kg_aed', '0');
+            $deliveryFeeAed = (float)get_setting('delivery_fee_aed', '0');
+
             $total = 0;
+            $anyDelivery = false;
             $verifiedLines = [];
 
             // Re-verify stock inside the transaction — a listing can sell out
             // between browsing and checkout, so never trust the session's numbers alone.
+            // Same for pricing: fees are recalculated from current settings here,
+            // never taken from the session, so a price change mid-checkout can't
+            // be exploited and every order records exactly what it was charged.
             foreach ($lines as $line) {
                 $stmt = $pdo->prepare('SELECT weight_kg, weight_reserved_kg, price_per_kg_aed, status FROM catch_items WHERE id = ? FOR UPDATE');
                 $stmt->execute([$line['catch_item_id']]);
@@ -48,28 +56,48 @@ if (is_post()) {
                     throw new RuntimeException("Sorry — {$line['species_name']} no longer has enough left. Please adjust your cart.");
                 }
 
-                $subtotal = round($line['quantity_kg'] * (float)$item['price_per_kg_aed'], 2);
+                $fishCost = round($line['quantity_kg'] * (float)$item['price_per_kg_aed'], 2);
+                $cleanFee = $line['clean'] ? round($line['quantity_kg'] * $cleanPricePerKg, 2) : 0.0;
+                $cookFee = $line['cook'] ? round($line['quantity_kg'] * $cookPricePerKg, 2) : 0.0;
+                $subtotal = round($fishCost + $cleanFee + $cookFee, 2);
+
+                if ($line['method'] === 'deliver') {
+                    $anyDelivery = true;
+                }
+
                 $total += $subtotal;
-                $verifiedLines[] = $line + ['subtotal' => $subtotal, 'reserved_before' => (float)$item['weight_reserved_kg']];
+                $verifiedLines[] = $line + [
+                    'subtotal' => $subtotal,
+                    'clean_fee' => $cleanFee,
+                    'cook_fee' => $cookFee,
+                    'reserved_before' => (float)$item['weight_reserved_kg'],
+                ];
+            }
+
+            if ($anyDelivery) {
+                $total += $deliveryFeeAed;
             }
 
             $groupStmt = $pdo->prepare(
-                'INSERT INTO order_groups (visitor_name, visitor_phone, delivery_address, total_price_aed) VALUES (?, ?, ?, ?)'
+                'INSERT INTO order_groups (visitor_name, visitor_phone, delivery_address, delivery_fee_aed, total_price_aed) VALUES (?, ?, ?, ?, ?)'
             );
-            $groupStmt->execute([$name, $phone, $address ?: null, $total]);
+            $groupStmt->execute([$name, $phone, $address ?: null, $anyDelivery ? $deliveryFeeAed : 0, $total]);
             $groupId = (int)$pdo->lastInsertId();
 
             foreach ($verifiedLines as $line) {
                 $pdo->prepare(
                     'INSERT INTO orders (order_group_id, catch_item_id, visitor_name, visitor_phone, quantity_kg,
-                        service_pickup, service_deliver, service_clean, service_cook, delivery_address, total_price_aed)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                        service_pickup, service_deliver, service_clean, service_cook, clean_fee_aed, cook_fee_aed,
+                        delivery_address, total_price_aed)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                 )->execute([
                     $groupId, $line['catch_item_id'], $name, $phone, $line['quantity_kg'],
                     $line['method'] === 'pickup' ? 1 : 0,
                     $line['method'] === 'deliver' ? 1 : 0,
                     $line['clean'] ? 1 : 0,
                     $line['cook'] ? 1 : 0,
+                    $line['clean_fee'],
+                    $line['cook_fee'],
                     $line['method'] === 'deliver' ? $address : null,
                     $line['subtotal'],
                 ]);
@@ -122,13 +150,24 @@ if (is_post()) {
           <?php if ($line['species_image']): ?><img src="<?= e($line['species_image']) ?>" alt=""><?php else: ?><div style="width:70px;height:52px;background:var(--foam-dim);"></div><?php endif; ?>
           <div>
             <strong><?= e($line['species_name']) ?></strong> — <?= number_format($line['quantity_kg'], 1) ?> kg
-            <div class="meta"><?= $line['method'] === 'deliver' ? 'Deliver' : 'Pickup' ?><?= $line['clean'] ? ' + Clean' : '' ?><?= $line['cook'] ? ' + Cook' : '' ?></div>
+            <div class="meta">
+              <?= $line['method'] === 'deliver' ? 'Deliver' : 'Pickup' ?><?= $line['clean'] ? ' + Clean' : '' ?><?= $line['cook'] ? ' + Cook' : '' ?>
+              <?php if ($line['clean_fee'] > 0 || $line['cook_fee'] > 0): ?>
+                (fish AED <?= number_format($line['fish_cost'], 2) ?><?php if ($line['clean_fee'] > 0): ?> + clean AED <?= number_format($line['clean_fee'], 2) ?><?php endif; ?><?php if ($line['cook_fee'] > 0): ?> + cook AED <?= number_format($line['cook_fee'], 2) ?><?php endif; ?>)
+              <?php endif; ?>
+            </div>
           </div>
           <div>AED <?= number_format($line['subtotal'], 2) ?></div>
         </div>
       <?php endforeach; ?>
-      <div style="text-align:right; margin-top:14px; font-family:var(--display); font-size:1.2rem; color:var(--sky-deep);">
-        Total: AED <?= number_format(array_reduce($lines, fn($s,$l)=>$s+$l['subtotal'],0), 2) ?>
+      <div style="text-align:right; margin-top:14px;">
+        <div style="color:var(--scale); font-size:0.88rem;">Items: AED <?= number_format(array_reduce($lines, fn($s,$l)=>$s+$l['subtotal'],0), 2) ?></div>
+        <?php $deliveryFeeDisplay = cart_delivery_fee(); if ($deliveryFeeDisplay > 0): ?>
+          <div style="color:var(--scale); font-size:0.88rem;">Delivery (once per order): AED <?= number_format($deliveryFeeDisplay, 2) ?></div>
+        <?php endif; ?>
+        <div style="font-family:var(--display); font-size:1.2rem; color:var(--sky-deep); margin-top:4px;">
+          Total: AED <?= number_format(cart_total(), 2) ?>
+        </div>
       </div>
     </div>
 

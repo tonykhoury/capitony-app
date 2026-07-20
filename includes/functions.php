@@ -38,6 +38,32 @@ function is_post(): bool
 }
 
 /**
+ * For datetime values that came from MySQL's CURRENT_TIMESTAMP/NOW()
+ * (posted_at, created_at, started_at, etc.) — these are stored in UTC
+ * (see the SET time_zone in database.php). Use these two helpers rather
+ * than strtotime()/date() directly on those columns, or the result will
+ * be off by whatever the gap is between UTC and Asia/Dubai (currently 4
+ * hours) — PHP's default timezone only governs *display*, and naively
+ * parsing a UTC string with it silently mis-shifts the time.
+ *
+ * NOTE: this does NOT apply to columns a person typed directly (like
+ * trips.departs_at) — those are entered and stored as plain Dubai local
+ * time with no MySQL clock involved, so they don't have this problem.
+ */
+function utc_to_epoch_ms(string $utcDatetime): int
+{
+    $dt = new DateTime($utcDatetime, new DateTimeZone('UTC'));
+    return $dt->getTimestamp() * 1000;
+}
+
+function utc_to_local(string $utcDatetime, string $format = 'g:i A'): string
+{
+    $dt = new DateTime($utcDatetime, new DateTimeZone('UTC'));
+    $dt->setTimezone(new DateTimeZone('Asia/Dubai'));
+    return $dt->format($format);
+}
+
+/**
  * Handles a single uploaded image: validates it's really an image,
  * re-encodes it via GD (strips any embedded non-image payload — a
  * standard defense against disguised file uploads), and saves it

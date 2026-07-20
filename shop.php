@@ -91,8 +91,8 @@ $cartIds = array_keys($_SESSION['cart'] ?? []);
       <?php if ($l['species_name_ar']): ?><div class="ar-name"><?= e($l['species_name_ar']) ?></div><?php endif; ?>
       <div class="remaining"><?= number_format($l['weight_kg'], 1) ?> kg</div>
       <div class="price">AED <?= number_format($l['price_per_kg_aed'] * $l['weight_kg'], 0) ?></div>
-      <div class="catch-time" data-posted-epoch="<?= strtotime($l['posted_at']) * 1000 ?>">
-        Caught <?= e(date('g:i A', strtotime($l['posted_at']))) ?> &middot; <span class="time-ago">just now</span>
+      <div class="catch-time" data-posted-epoch="<?= utc_to_epoch_ms($l['posted_at']) ?>">
+        Caught <?= e(utc_to_local($l['posted_at'])) ?> &middot; <span class="time-ago">just now</span>
       </div>
 
       <?php if ($isSold): ?>

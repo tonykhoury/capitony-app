@@ -121,8 +121,8 @@ $catchItems = $catchItems->fetchAll();
         <td><?= e($ci['species_name']) ?></td>
         <td><?= number_format($ci['weight_kg'], 1) ?> kg</td>
         <td>AED <?= number_format($ci['price_per_kg_aed'], 0) ?></td>
-        <td class="catch-time-cell" data-posted-epoch="<?= strtotime($ci['posted_at']) * 1000 ?>">
-          <?= e(date('g:i A', strtotime($ci['posted_at']))) ?> &middot; <span class="time-ago">just now</span>
+        <td class="catch-time-cell" data-posted-epoch="<?= utc_to_epoch_ms($ci['posted_at']) ?>">
+          <?= e(utc_to_local($ci['posted_at'])) ?> &middot; <span class="time-ago">just now</span>
         </td>
         <td><?= e($ci['status']) ?></td>
         <td>

@@ -83,7 +83,7 @@ $captains = db()->query(
         <td><?= e($c['name']) ?></td>
         <td><?= e($c['email']) ?></td>
         <td><?= e($c['phone']) ?></td>
-        <td><?= $c['last_login_at'] ? e(date('M j, g:i A', strtotime($c['last_login_at']))) : '— never —' ?></td>
+        <td><?= $c['last_login_at'] ? e(utc_to_local($c['last_login_at'], 'M j, g:i A')) : '— never —' ?></td>
         <td><?= $c['is_active'] ? 'Active' : 'Disabled' ?></td>
       </tr>
       <?php endforeach; ?>

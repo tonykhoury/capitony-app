@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/../../includes/bootstrap.php';
+require __DIR__ . '/../includes/bootstrap.php';
 $user = require_role('admin');
 
 $error = null;
@@ -90,7 +90,7 @@ $trips = db()->query(
 <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body>
-<?php require __DIR__ . '/../../includes/admin-nav.php'; ?>
+<?php require __DIR__ . '/../includes/admin-nav.php'; ?>
 
 <div class="wrap">
   <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>

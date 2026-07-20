@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/../../includes/bootstrap.php';
+require __DIR__ . '/../includes/bootstrap.php';
 $user = require_role('captain');
 
 $tripId = (int)($_GET['trip_id'] ?? $_POST['trip_id'] ?? 0);
@@ -70,7 +70,7 @@ $catchItems = $catchItems->fetchAll();
 <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body>
-<?php require __DIR__ . '/../../includes/captain-nav.php'; ?>
+<?php require __DIR__ . '/../includes/captain-nav.php'; ?>
 
 <div class="wrap">
   <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>

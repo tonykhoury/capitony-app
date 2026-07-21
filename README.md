@@ -42,6 +42,12 @@ anything from them.
 - **Root directory**: `public_html` (the default)
 - **Branch**: `main`
 
+- **Photo album**: admin uploads/removes photos and videos (`/admin/gallery.php`),
+  shown publicly at `/album.php`. Photos are re-encoded via GD like every
+  other upload; videos are validated by real MIME type (not just file
+  extension) since there's no video equivalent of GD re-encoding. Both go
+  through the same redeploy-safe `UPLOADS_STORAGE_DIR` storage.
+
 ## Setup — brand-new database
 
 ## ⚠️ Required action if you deployed before this fix

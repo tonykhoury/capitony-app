@@ -1,21 +1,17 @@
 <?php
 /**
- * Serves uploaded images from UPLOADS_STORAGE_DIR, which sits outside
- * public_html specifically so Git redeploys never touch it. Static files
- * inside public_html get wiped on every deploy; this script's own code
- * IS inside public_html (and redeployed normally), but the images it
- * reads are not.
+ * Serves uploaded images/videos from UPLOADS_STORAGE_DIR, which sits
+ * outside public_html specifically so Git redeploys never touch it.
  *
- * URL shape: /media.php?f=species/abc123.jpg
+ * URL shape: /media.php?f=species/abc123.jpg or /media.php?f=gallery/abc123.mp4
  */
 require __DIR__ . '/config/database.php';
 
 $f = $_GET['f'] ?? '';
 
 // Strict allowlist: subfolder must be one of ours, filename must match
-// exactly what handle_image_upload() generates (12 random hex bytes = 24
-// hex chars, always .jpg since every upload is re-encoded as JPEG).
-if (!preg_match('#^(species|boats|catch)/[a-f0-9]{24}\.jpg$#', $f)) {
+// exactly what the upload handlers generate (24 hex chars + a known extension).
+if (!preg_match('#^(species|boats|catch|gallery)/[a-f0-9]{24}\.(jpg|mp4|mov|webm)$#', $f, $m)) {
     http_response_code(404);
     exit;
 }
@@ -27,8 +23,15 @@ if (!is_file($path)) {
     exit;
 }
 
-header('Content-Type: image/jpeg');
+$contentTypes = [
+    'jpg'  => 'image/jpeg',
+    'mp4'  => 'video/mp4',
+    'mov'  => 'video/quicktime',
+    'webm' => 'video/webm',
+];
+header('Content-Type: ' . $contentTypes[$m[2]]);
 header('Content-Length: ' . filesize($path));
+header('Accept-Ranges: bytes'); // lets video players seek/scrub instead of downloading the whole file
 // These filenames are random and never reused for different content —
 // safe to cache aggressively and permanently.
 header('Cache-Control: public, max-age=31536000, immutable');

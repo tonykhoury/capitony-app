@@ -149,7 +149,60 @@ function handle_image_upload(string $fieldName, string $subfolder): ?string
     return '/media.php?f=' . $subfolder . '/' . $filename;
 }
 
-/** Deletes a previously uploaded image file given its stored web path, if set. */
+/**
+ * Handles a single uploaded video: validates real MIME type (not just the
+ * filename extension, which is trivial to fake) and size, then saves it
+ * to UPLOADS_STORAGE_DIR. Videos are NOT re-encoded (no GD equivalent for
+ * video, and transcoding needs ffmpeg which may not be available on this
+ * hosting) — MIME + extension validation is the defense here instead.
+ *
+ * Returns the web path (e.g. "/media.php?f=gallery/abc123.mp4") on
+ * success, or null if no file was uploaded.
+ */
+function handle_video_upload(string $fieldName, string $subfolder): ?string
+{
+    if (empty($_FILES[$fieldName]['name']) || $_FILES[$fieldName]['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    $file = $_FILES[$fieldName];
+
+    if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
+        throw new RuntimeException('That video is larger than this server currently allows. Contact the site admin to raise the upload limit.');
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Upload failed. Please try again.');
+    }
+
+    if ($file['size'] > 150 * 1024 * 1024) {
+        throw new RuntimeException('Video is too large — please keep it under 150MB.');
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    $allowed = ['video/mp4' => 'mp4', 'video/quicktime' => 'mov', 'video/webm' => 'webm'];
+    if (!isset($allowed[$mime])) {
+        throw new RuntimeException('Please upload an MP4, MOV, or WEBM video.');
+    }
+
+    $uploadDir = UPLOADS_STORAGE_DIR . '/' . $subfolder;
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $filename = bin2hex(random_bytes(12)) . '.' . $allowed[$mime];
+    $destPath = $uploadDir . '/' . $filename;
+
+    if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+        throw new RuntimeException('Could not save that video. Please try again.');
+    }
+
+    return '/media.php?f=' . $subfolder . '/' . $filename;
+}
+
+/** Deletes a previously uploaded image/video file given its stored web path, if set. */
 function delete_uploaded_image(?string $webPath): void
 {
     if (!$webPath || !str_starts_with($webPath, '/media.php?f=')) {
@@ -157,7 +210,7 @@ function delete_uploaded_image(?string $webPath): void
     }
     $f = substr($webPath, strlen('/media.php?f='));
     // Same allowlist as media.php — never trust a stored path blindly before unlinking.
-    if (!preg_match('#^(species|boats|catch)/[a-f0-9]{24}\.jpg$#', $f)) {
+    if (!preg_match('#^(species|boats|catch|gallery)/[a-f0-9]{24}\.(jpg|mp4|mov|webm)$#', $f)) {
         return;
     }
     $fullPath = UPLOADS_STORAGE_DIR . '/' . $f;

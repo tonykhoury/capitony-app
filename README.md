@@ -44,6 +44,20 @@ anything from them.
 
 ## Setup — brand-new database
 
+## ⚠️ Required action if you deployed before this fix
+
+If your `config.php` doesn't already have `UPLOADS_STORAGE_DIR` defined,
+**add this line now, before your next deploy**:
+```php
+define('UPLOADS_STORAGE_DIR', dirname(__DIR__, 2) . '/private_uploads');
+```
+Without it, `handle_image_upload()` will fatally error on the next photo
+upload. This also means any photos uploaded before this fix are gone —
+Hostinger's Git deploy wiped them on a prior redeploy, since they lived
+inside the deployed folder. They'll need to be re-uploaded (species
+photos, boat photos, catch listings) once this is live — sorry about
+that; there was no way to recover them after the fact.
+
 1. Create the database, import `sql/schema.sql` (phpMyAdmin → Import, or
    `mysql -u user -p dbname < sql/schema.sql` if you have SSH).
 2. `cp config/config.example.php config/config.php` and fill in real values.
@@ -111,10 +125,18 @@ most Hostinger plans don't include SSH by default:
 - Sessions use `httponly`, `samesite=Lax`, and `secure` cookies once
   `APP_ENV` is `production` (requires active HTTPS).
 - All SQL goes through PDO prepared statements throughout.
-- Uploaded images (species/boats/catch photos) are re-encoded via GD
-  before saving — this strips any non-image payload someone might try to
-  disguise as a photo — and the uploads folder blocks `.php` execution
-  as a second layer of defense.
+- **Uploaded images (species/boats/catch photos) are stored OUTSIDE
+  `public_html` entirely — at `UPLOADS_STORAGE_DIR`, defined in
+  `config.php`.** This is critical, not optional: Hostinger's Git deploy
+  resets `public_html` to exactly match the repository on every deploy,
+  silently deleting any file that isn't tracked in git. Uploaded photos
+  are never tracked in git (they're created live, by whoever uploads
+  them) — so if they lived inside `public_html`, every redeploy would
+  wipe them. This actually happened once during development before the
+  fix. Images are re-encoded via GD before saving (strips any non-image
+  payload someone might try to disguise as a photo) and served through
+  `media.php`, which validates the requested filename against a strict
+  allowlist before reading it.
 - `config.php` is never committed (`.gitignore`) and is blocked at the
   web server level via `.htaccess`, same as `includes/`, `scripts/`, `sql/`.
 - Checkout stock checks happen inside a transaction with `FOR UPDATE`

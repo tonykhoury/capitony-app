@@ -87,10 +87,11 @@ function set_setting(string $key, string $value): void
 /**
  * Handles a single uploaded image: validates it's really an image,
  * re-encodes it via GD (strips any embedded non-image payload — a
- * standard defense against disguised file uploads), and saves it
- * under /assets/uploads/{subfolder}/.
+ * standard defense against disguised file uploads), and saves it to
+ * UPLOADS_STORAGE_DIR — deliberately OUTSIDE public_html, so it survives
+ * Git redeploys (see the comment on that constant in config.php).
  *
- * Returns the relative web path (e.g. "/assets/uploads/species/abc123.jpg")
+ * Returns the web path to fetch it (e.g. "/media.php?f=species/abc123.jpg")
  * on success, or null if no file was uploaded. Throws RuntimeException
  * with a user-safe message on validation failure.
  */
@@ -127,7 +128,7 @@ function handle_image_upload(string $fieldName, string $subfolder): ?string
         throw new RuntimeException('Could not process that image. Please try another file.');
     }
 
-    $uploadDir = __DIR__ . '/../assets/uploads/' . $subfolder;
+    $uploadDir = UPLOADS_STORAGE_DIR . '/' . $subfolder;
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
@@ -145,17 +146,22 @@ function handle_image_upload(string $fieldName, string $subfolder): ?string
     imagedestroy($srcImage);
     imagedestroy($flat);
 
-    return '/assets/uploads/' . $subfolder . '/' . $filename;
+    return '/media.php?f=' . $subfolder . '/' . $filename;
 }
 
-/** Deletes a previously uploaded image file given its web path, if set. */
+/** Deletes a previously uploaded image file given its stored web path, if set. */
 function delete_uploaded_image(?string $webPath): void
 {
-    if (!$webPath) {
+    if (!$webPath || !str_starts_with($webPath, '/media.php?f=')) {
         return;
     }
-    $fullPath = __DIR__ . '/../' . ltrim($webPath, '/');
-    if (is_file($fullPath) && str_contains($fullPath, '/assets/uploads/')) {
+    $f = substr($webPath, strlen('/media.php?f='));
+    // Same allowlist as media.php — never trust a stored path blindly before unlinking.
+    if (!preg_match('#^(species|boats|catch)/[a-f0-9]{24}\.jpg$#', $f)) {
+        return;
+    }
+    $fullPath = UPLOADS_STORAGE_DIR . '/' . $f;
+    if (is_file($fullPath)) {
         @unlink($fullPath);
     }
 }

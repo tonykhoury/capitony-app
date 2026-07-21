@@ -24,6 +24,14 @@ define('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 define('TWILIO_AUTH_TOKEN', 'CHANGE_ME');
 define('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886'); // Twilio sandbox number, or your approved sender
 
+// --- Uploaded file storage (species/boat/catch photos) -----------------
+// IMPORTANT: this must be OUTSIDE the folder Git deploys into (public_html),
+// or every redeploy will silently delete uploaded photos — Hostinger's Git
+// deploy resets public_html to exactly match the repo, wiping anything not
+// tracked in git. dirname(__DIR__, 2) goes one level above public_html —
+// adjust if your account's folder layout differs.
+define('UPLOADS_STORAGE_DIR', dirname(__DIR__, 2) . '/private_uploads');
+
 // --- Live streaming (separate VPS — see docs/live-streaming-setup.md) ---
 // Base URL for HLS playback. The player builds the full URL as
 // STREAM_HLS_BASE_URL . stream_key . '.m3u8'

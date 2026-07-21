@@ -1,7 +1,0 @@
-# Uploaded images must be viewable, but never executable — even though
-# handle_image_upload() re-encodes everything as JPEG (which neutralizes
-# disguised payloads), this is a second layer of defense.
-<FilesMatch "\.(php|phtml|php3|php4|php5|phar)$">
-    Require all denied
-</FilesMatch>
-Options -Indexes

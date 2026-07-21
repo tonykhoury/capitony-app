@@ -145,6 +145,34 @@ most Hostinger plans don't include SSH by default:
   sell-through rate (posted vs. sold weight) per trip, and captain
   activity (trips run, catches posted). No new schema needed — this is
   purely new admin-side query/UI work whenever it's prioritized.
+- **Checkout enhancements (PARKED — three related changes)**:
+  1. **UAE-standard address structure**: replace the single free-text
+     `delivery_address` field with structured fields matching how UAE
+     addresses actually work — Emirate (dropdown: Abu Dhabi, Dubai,
+     Sharjah, Ajman, Umm Al Quwain, Ras Al Khaimah, Fujairah), City/Area,
+     Neighborhood, Street, Building name/number, Apartment or Villa
+     number, and a Landmark field (very commonly used here since formal
+     addressing is inconsistent). Worth also considering a **Makani
+     number** field — UAE's official geo-addressing system, which many
+     delivery services rely on for precise location. This needs new
+     columns on `order_groups` (and probably `orders`, since that's
+     where `delivery_address` currently lives per-line) — a straight
+     schema migration, not a big structural change.
+  2. **Make email mandatory at checkout**: currently only name + phone
+     are collected. Needs a new `email` column on `order_groups` (doesn't
+     exist yet) plus making it `required` in the checkout form.
+  3. **Visitor accounts for returning customers**: bigger change — the
+     app is currently deliberately account-free for visitors (session
+     cart, guest checkout only). Real accounts need: a new `customers`
+     table (kept separate from `users`, since customers are a different
+     concept from staff/admin/captain — different auth flow, no role
+     overlap), registration + login + password reset pages, an optional
+     "create an account" checkbox at checkout (standard e-commerce
+     pattern — account creation shouldn't block guest checkout), and
+     linking `order_groups` to a `customer_id` when signed in so order
+     history becomes possible. This is the largest of the three and
+     probably deserves its own planning pass rather than being bundled
+     in with the address/email changes.
 - **Trip requests** (visitors asking to join a fishing trip): schema
   exists (`trip_requests`), no visitor-facing page yet.
 - **Password change / forgot password** for staff accounts.

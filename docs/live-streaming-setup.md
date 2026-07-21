@@ -77,7 +77,6 @@ server {
     server_name stream.capitony.live;
     location / {
         proxy_pass http://127.0.0.1:8080;
-        add_header Access-Control-Allow-Origin *;
     }
 }
 ```
@@ -93,6 +92,16 @@ playback URL is:
 ```
 https://stream.capitony.live/live/{stream_key}.m3u8
 ```
+
+**Important — don't add a CORS header here.** The `alfg/nginx-rtmp`
+container already sends `Access-Control-Allow-Origin: *` on its own for
+every HLS response. If the reverse-proxy config above also adds
+`add_header Access-Control-Allow-Origin *;`, browsers will receive the
+header **twice** (`*, *`) and reject it outright — the video will load
+fine over plain HTTP/curl but silently fail in every browser with a CORS
+error, which is confusing to debug because the network request itself
+returns 200 OK. If you ever recreate this config from scratch, leave
+that line out entirely.
 
 ## 7. Streaming from the captain's phone
 

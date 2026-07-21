@@ -138,6 +138,35 @@ most Hostinger plans don't include SSH by default:
   live, most likely polling for new messages (a proper websocket/SSE
   setup is more work and not necessary for a low-message-volume feature
   like this).
+- **Zoho Books invoice automation (PARKED)**: auto-generate an invoice in
+  Zoho Books for every completed order. Design notes based on how Zoho's
+  API actually works:
+  - Zoho Books has **no programmatic webhook subscription** — outbound
+    webhooks can only be configured manually through Zoho's own workflow
+    rules UI, not via API. So the integration has to run the other
+    direction: **our checkout.php pushes to Zoho** right after an order
+    commits successfully, rather than Zoho pushing to us.
+  - Auth is OAuth 2.0 with a refresh-token flow (register an API client
+    in Zoho's API console, store the refresh token in `config.php`
+    alongside the Twilio credentials — same sensitivity level).
+  - Every API call needs an `organization_id`, and Zoho runs **separate
+    regional API domains** (`.com`, `.eu`, `.in`, `.com.au`, `.jp`,
+    `.ca`) — need to confirm which data center this Zoho account is on
+    before writing the integration, or requests will silently fail.
+  - Flow: on successful checkout, match-or-create the customer contact
+    in Zoho by phone/email, map each order line to a Zoho invoice line
+    item (species + weight + services as line items — simplest to use
+    ad-hoc line items with description/rate/quantity rather than
+    pre-mapping every species into Zoho's item catalog), then create the
+    invoice with the `order_groups.id` as an external reference for
+    idempotency (so a retried request never creates a duplicate
+    invoice). Needs a `zoho_invoice_id` column added to `order_groups`
+    to track what's already been synced.
+  - Failures need to be non-blocking — if Zoho's API is down, the order
+    itself must still complete; the invoice sync should be a
+    best-effort follow-up step (or a small retry queue) rather than part
+    of the checkout transaction itself.
+
 - **Admin operations dashboard (PARKED — metrics overview)**: the admin
   dashboard currently just lists upcoming trips. A real metrics view
   would pull from data that already exists: revenue by day/week from

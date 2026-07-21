@@ -39,7 +39,8 @@ if (is_post()) {
     }
 }
 
-$items = db()->query('SELECT * FROM gallery_items ORDER BY created_at DESC')->fetchAll();
+$photos = db()->query("SELECT * FROM gallery_items WHERE type = 'photo' ORDER BY created_at DESC")->fetchAll();
+$videos = db()->query("SELECT * FROM gallery_items WHERE type = 'video' ORDER BY created_at DESC")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -84,10 +85,9 @@ $items = db()->query('SELECT * FROM gallery_items ORDER BY created_at DESC')->fe
     </form>
   </div>
 
-  <div class="card">
-    <h2 style="font-size:1.1rem;">Album (<?= count($items) ?>)</h2>
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:16px; margin-top:14px;">
-      <?php foreach ($items as $item): ?>
+  <?php
+  function render_admin_gallery_grid(array $items): void {
+      foreach ($items as $item): ?>
       <div style="border:1px solid var(--foam-dim);">
         <?php if ($item['type'] === 'photo'): ?>
           <img src="<?= e($item['file_path']) ?>" alt="" style="width:100%; aspect-ratio:4/3; object-fit:cover; display:block;">
@@ -106,12 +106,28 @@ $items = db()->query('SELECT * FROM gallery_items ORDER BY created_at DESC')->fe
           </form>
         </div>
       </div>
-      <?php endforeach; ?>
-      <?php if (!$items): ?>
-        <p style="color:var(--scale);">Nothing in the album yet.</p>
+      <?php endforeach;
+  }
+  ?>
+
+  <div class="card">
+    <h2 style="font-size:1.1rem;">Photos (<?= count($photos) ?>)</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:16px; margin-top:14px;">
+      <?php if ($photos): render_admin_gallery_grid($photos); else: ?>
+        <p style="color:var(--scale);">No photos yet.</p>
       <?php endif; ?>
     </div>
   </div>
+
+  <div class="card">
+    <h2 style="font-size:1.1rem;">Videos (<?= count($videos) ?>)</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:16px; margin-top:14px;">
+      <?php if ($videos): render_admin_gallery_grid($videos); else: ?>
+        <p style="color:var(--scale);">No videos yet.</p>
+      <?php endif; ?>
+    </div>
+  </div>
+
 </div>
 </body>
 </html>

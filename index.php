@@ -2,7 +2,7 @@
 require __DIR__ . '/includes/bootstrap.php';
 
 $liveTrip = db()->query(
-    "SELECT t.id, b.name AS boat_name FROM live_sessions ls
+    "SELECT t.id, b.name AS boat_name, ls.stream_key FROM live_sessions ls
      JOIN trips t ON t.id = ls.trip_id
      LEFT JOIN boats b ON b.id = t.boat_id
      WHERE ls.status = 'live' LIMIT 1"
@@ -24,7 +24,7 @@ require __DIR__ . '/includes/public-header.php';
 ?>
 
 <?php if ($liveTrip): ?>
-<div class="live-banner"><span class="live-dot"></span> Live now — <?= e($liveTrip['boat_name'] ?? 'the boat') ?> is out fishing</div>
+<?php $liveSession = $liveTrip; require __DIR__ . '/includes/live-player.php'; ?>
 <?php endif; ?>
 
 <section class="hero">

@@ -68,7 +68,7 @@ require __DIR__ . '/includes/public-header.php';
 ?>
 
 <?php if ($liveTrip): ?>
-<div class="live-banner"><span class="live-dot"></span> Live now — <?= e($liveTrip['boat_name'] ?? 'the boat') ?> is out fishing</div>
+<a href="/#live" class="live-banner" style="display:flex;"><span class="live-dot"></span> Live now — <?= e($liveTrip['boat_name'] ?? 'the boat') ?> is out fishing — watch it here</a>
 <?php endif; ?>
 
 <section class="section" style="padding-top:52px;">

@@ -24,5 +24,10 @@ define('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 define('TWILIO_AUTH_TOKEN', 'CHANGE_ME');
 define('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886'); // Twilio sandbox number, or your approved sender
 
+// --- Live streaming (separate VPS — see docs/live-streaming-setup.md) ---
+// Base URL for HLS playback. The player builds the full URL as
+// STREAM_HLS_BASE_URL . stream_key . '.m3u8'
+define('STREAM_HLS_BASE_URL', 'https://stream.capitony.live/hls/');
+
 // --- Timezone ---------------------------------------------------------
 date_default_timezone_set('Asia/Dubai');

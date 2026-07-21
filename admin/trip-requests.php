@@ -43,7 +43,7 @@ $requests = db()->query(
       <?php foreach ($requests as $r): ?>
       <tr>
         <td><?= e(date('D, M j · g:i A', strtotime($r['departs_at']))) ?> · <?= e($r['boat_name'] ?? 'Boat') ?></td>
-        <td><?= e($r['visitor_name']) ?><br><span style="font-family:var(--mono); font-size:0.78rem; color:var(--scale);"><?= e($r['visitor_phone']) ?></span></td>
+        <td><?= e($r['visitor_name']) ?><br><span style="font-family:var(--mono); font-size:0.78rem; color:var(--scale);"><?= e($r['visitor_phone']) ?><?php if (!empty($r['visitor_email'])): ?> · <?= e($r['visitor_email']) ?><?php endif; ?></span></td>
         <td><?= (int)$r['seats_requested'] ?></td>
         <td><span class="badge badge-<?= $r['status'] === 'confirmed' ? 'live' : ($r['status'] === 'pending' ? 'scheduled' : 'completed') ?>"><?= e($r['status']) ?></span></td>
         <td style="white-space:nowrap;">

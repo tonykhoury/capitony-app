@@ -9,6 +9,7 @@ if (is_post()) {
     $tripId = (int)($_POST['trip_id'] ?? 0);
     $name = trim($_POST['visitor_name'] ?? '');
     $phone = normalize_phone($_POST['visitor_phone'] ?? '');
+    $email = trim($_POST['visitor_email'] ?? '');
     $seats = max(1, (int)($_POST['seats_requested'] ?? 1));
 
     $trip = db()->prepare("SELECT * FROM trips WHERE id = ? AND status = 'scheduled'");
@@ -21,16 +22,18 @@ if (is_post()) {
     $taken->execute([$tripId]);
     $remaining = $trip ? (int)$trip['total_seats'] - (int)$taken->fetchColumn() : 0;
 
-    if ($name === '' || $phone === '') {
-        $error = 'Name and phone number are required.';
+    if ($name === '' || $phone === '' || $email === '') {
+        $error = 'Name, phone number, and email are all required.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'Please enter a valid email address.';
     } elseif (!$trip) {
         $error = 'That trip is no longer available.';
     } elseif ($seats > $remaining) {
         $error = "Only {$remaining} seat" . ($remaining === 1 ? '' : 's') . " left on that trip.";
     } else {
         db()->prepare(
-            'INSERT INTO trip_requests (trip_id, visitor_name, visitor_phone, seats_requested) VALUES (?, ?, ?, ?)'
-        )->execute([$tripId, $name, $phone, $seats]);
+            'INSERT INTO trip_requests (trip_id, visitor_name, visitor_phone, visitor_email, seats_requested) VALUES (?, ?, ?, ?, ?)'
+        )->execute([$tripId, $name, $phone, $email, $seats]);
         $requested = true;
         flash('success', "Request sent — we'll confirm by WhatsApp or call before the trip.");
         redirect('/trips.php');
@@ -96,6 +99,8 @@ require __DIR__ . '/includes/public-header.php';
               <input type="hidden" name="trip_id" value="<?= (int)$t['id'] ?>">
               <label for="name_<?= (int)$t['id'] ?>">Your name</label>
               <input type="text" id="name_<?= (int)$t['id'] ?>" name="visitor_name" required>
+              <label for="email_<?= (int)$t['id'] ?>">Email</label>
+              <input type="email" id="email_<?= (int)$t['id'] ?>" name="visitor_email" required>
               <label for="phone_<?= (int)$t['id'] ?>">Phone / WhatsApp</label>
               <input type="tel" id="phone_<?= (int)$t['id'] ?>" name="visitor_phone" required placeholder="+971...">
               <label for="seats_<?= (int)$t['id'] ?>">Seats</label>

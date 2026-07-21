@@ -56,7 +56,7 @@ $liveTrip = db()->query(
     "SELECT t.id, b.name AS boat_name FROM live_sessions ls
      JOIN trips t ON t.id = ls.trip_id
      LEFT JOIN boats b ON b.id = t.boat_id
-     WHERE ls.status = 'live' LIMIT 1"
+     WHERE ls.status = 'live' ORDER BY ls.started_at DESC LIMIT 1"
 )->fetch();
 
 $availableCount = count(array_filter($listings, fn($l) => $l['status'] === 'available'));

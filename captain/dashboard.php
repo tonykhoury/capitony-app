@@ -22,10 +22,19 @@ if (is_post()) {
         flash('success', 'Trip started. Safe travels — post the catch as it comes in.');
         redirect('/captain/dashboard.php');
     } elseif ($action === 'go_live' && $trip['status'] === 'live') {
-        // NOTE: this creates the DB record for the broadcast. Actually
-        // receiving video needs an RTMP ingest server (e.g. nginx-rtmp
-        // or a hosted service) running on the VPS — not wired up yet.
-        // The stream_key below is what that server will use once it exists.
+        // Video is now live via a dedicated streaming VPS (see
+        // docs/live-streaming-setup.md) — this generates the stream_key
+        // the captain enters into their broadcasting app (e.g. Larix).
+        //
+        // Safety: end any other live_sessions rows for this trip first.
+        // Without this, clicking "Go Live" twice (e.g. after reconnecting
+        // a dropped stream) could leave two rows marked 'live' at once,
+        // and the site would have no reliable way to know which stream
+        // key is the one actually being broadcast right now.
+        db()->prepare(
+            "UPDATE live_sessions SET status = 'ended', ended_at = NOW() WHERE trip_id = ? AND status = 'live'"
+        )->execute([$tripId]);
+
         $streamKey = bin2hex(random_bytes(16));
         db()->prepare(
             'INSERT INTO live_sessions (trip_id, started_by, stream_key) VALUES (?, ?, ?)'

@@ -95,8 +95,12 @@ most Hostinger plans don't include SSH by default:
   (name, Arabic name, latin name, price, photo — create/edit/delete/hide),
   boats (name, photo — create/edit/delete/hide), captain accounts
 - **Captain**: start a trip, post Catch of the Day listings (species,
-  weight, price, photo), pull a listing, go live (DB record only — see
-  below), mark trip complete
+  weight, price, photo), pull a listing, go live, mark trip complete
+- **Live streaming**: captain streams via RTMP (e.g. Larix Broadcaster) to
+  a dedicated VPS running nginx-rtmp in Docker (see
+  `docs/live-streaming-setup.md`); homepage plays it back live via
+  hls.js, with a "starting soon" retry state and automatic fallback for
+  Safari's native HLS support
 - **Visitor shop**: browse live catch listings with photos and Arabic
   names, add to cart with a quantity
 - **Cart**: session-based (no visitor accounts). Set pickup/delivery +
@@ -113,13 +117,26 @@ most Hostinger plans don't include SSH by default:
 
 ## What's stubbed, not fully built yet
 
-- **Live video**: "Go Live" creates a database record with a stream key,
-  but nothing is actually receiving video yet — needs an RTMP ingest
-  server (`nginx-rtmp-module`, or a hosted alternative) on the VPS.
 - **WhatsApp catch alerts**: `catch_alerts` / `alert_notifications` tables
   exist; the matching + Twilio send logic hasn't been written yet.
-- **Live session chat** (text/voice notes during a broadcast): schema
-  exists (`chat_messages`), no UI yet.
+- **Live session chat (PARKED — visitor ↔ captain, text or voice)**:
+  schema exists (`chat_messages`, with `message_type` for text vs. voice
+  and `audio_path` for voice notes), no UI yet. Design notes for when
+  this gets built: visitors post from the live-player page using their
+  name + phone (same no-account pattern as ordering); voice notes need
+  browser mic capture (`MediaRecorder` API) uploaded as short audio
+  clips through the same safe-storage pattern as photos/videos; the
+  captain needs a simple reply UI on their dashboard while a trip is
+  live, most likely polling for new messages (a proper websocket/SSE
+  setup is more work and not necessary for a low-message-volume feature
+  like this).
+- **Admin operations dashboard (PARKED — metrics overview)**: the admin
+  dashboard currently just lists upcoming trips. A real metrics view
+  would pull from data that already exists: revenue by day/week from
+  `orders`/`order_groups`, best-selling species from `catch_items`,
+  sell-through rate (posted vs. sold weight) per trip, and captain
+  activity (trips run, catches posted). No new schema needed — this is
+  purely new admin-side query/UI work whenever it's prioritized.
 - **Trip requests** (visitors asking to join a fishing trip): schema
   exists (`trip_requests`), no visitor-facing page yet.
 - **Password change / forgot password** for staff accounts.

@@ -7,6 +7,7 @@
     <div>
       <h4>Explore</h4>
       <a href="/shop.php">Catch of the Day</a><br>
+      <a href="/trips.php">Book a Trip</a><br>
       <a href="/album.php">Photo Album</a><br>
       <a href="/about.php">Who We Are</a><br>
       <a href="/contact.php">Contact Us</a>

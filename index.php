@@ -19,6 +19,16 @@ $latest = db()->query(
      ORDER BY ci.posted_at DESC LIMIT 3"
 )->fetchAll();
 
+$upcomingTrips = db()->query(
+    "SELECT t.*, u.name AS captain_name, b.name AS boat_name_current,
+            COALESCE((SELECT SUM(tr.seats_requested) FROM trip_requests tr WHERE tr.trip_id = t.id AND tr.status IN ('pending','confirmed')), 0) AS seats_taken
+     FROM trips t
+     LEFT JOIN users u ON u.id = t.captain_id
+     LEFT JOIN boats b ON b.id = t.boat_id
+     WHERE t.status = 'scheduled' AND t.departs_at >= NOW()
+     ORDER BY t.departs_at ASC LIMIT 3"
+)->fetchAll();
+
 $pageTitle = 'Fresh Off the Boat';
 require __DIR__ . '/includes/public-header.php';
 ?>
@@ -38,6 +48,43 @@ require __DIR__ . '/includes/public-header.php';
       <a href="/shop.php" class="btn btn-sun">Shop Today's Catch</a>
       <a href="/about.php" class="btn btn-ghost">Our Story</a>
     </div>
+  </div>
+</section>
+
+<section class="section" style="padding-bottom:20px;">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Upcoming Trips</span>
+      <h2>Come aboard for the next one.</h2>
+      <p>Seats are limited per trip — request yours and we'll confirm before you head to the marina.</p>
+    </div>
+
+    <?php if ($upcomingTrips): ?>
+    <div class="product-grid">
+      <?php foreach ($upcomingTrips as $t):
+        $remaining = max(0, (int)$t['total_seats'] - (int)$t['seats_taken']);
+      ?>
+      <a class="pcard" href="/trips.php">
+        <div class="body" style="padding:20px;">
+          <h3><?= e(date('D, M j', strtotime($t['departs_at']))) ?></h3>
+          <div class="logbook" style="margin:8px 0;">
+            <span>🕐 <b><?= e(date('g:i A', strtotime($t['departs_at']))) ?></b></span>
+            <span>⛵ <b><?= e($t['boat_name_current'] ?? $t['boat_name'] ?? 'Boat') ?></b></span>
+          </div>
+          <div class="price" style="margin-bottom:4px;">AED <?= number_format($t['seat_price_aed'], 0) ?> <small>per seat</small></div>
+          <div style="font-family:var(--mono); font-size:0.78rem; color:<?= $remaining < 1 ? 'var(--danger)' : 'var(--mist)' ?>;">
+            <?= $remaining < 1 ? 'Fully booked' : "{$remaining} of {$t['total_seats']} seats left" ?>
+          </div>
+        </div>
+      </a>
+      <?php endforeach; ?>
+    </div>
+    <div style="margin-top:34px;">
+      <a href="/trips.php" class="btn btn-sun">See All Trips & Book a Seat</a>
+    </div>
+    <?php else: ?>
+    <div class="card">No trips scheduled right now — follow us on <a href="https://www.instagram.com/el.capitony/" style="color:var(--sun-deep);">Instagram</a> to know when we head out next.</div>
+    <?php endif; ?>
   </div>
 </section>
 

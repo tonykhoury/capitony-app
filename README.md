@@ -101,6 +101,11 @@ most Hostinger plans don't include SSH by default:
   `docs/live-streaming-setup.md`); homepage plays it back live via
   hls.js, with a "starting soon" retry state and automatic fallback for
   Safari's native HLS support
+- **Trip booking**: upcoming trips shown on the homepage and a full
+  `/trips.php` listing, with a request-to-join form (name, phone, seat
+  count). Seats remaining accounts for pending *and* confirmed requests,
+  so the site never shows more availability than actually exists. Admin
+  manages incoming requests (confirm/decline) at `/admin/trip-requests.php`.
 - **Visitor shop**: browse live catch listings with photos and Arabic
   names, add to cart with a quantity
 - **Cart**: session-based (no visitor accounts). Set pickup/delivery +
@@ -202,8 +207,6 @@ most Hostinger plans don't include SSH by default:
      history becomes possible. This is the largest of the three and
      probably deserves its own planning pass rather than being bundled
      in with the address/email changes.
-- **Trip requests** (visitors asking to join a fishing trip): schema
-  exists (`trip_requests`), no visitor-facing page yet.
 - **Password change / forgot password** for staff accounts.
 - **Admin order management view** — orders are created correctly by
   checkout, but there's no admin page yet to see/confirm/fulfill them.

@@ -119,20 +119,11 @@ if (is_post()) {
         }
     }
 }
+$pageTitle = 'Checkout';
+require __DIR__ . '/includes/public-header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Checkout — Capitony</title>
-<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Source+Serif+4&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-<?php require __DIR__ . '/includes/public-nav.php'; ?>
 
-<div class="wrap">
+<div class="wrap" style="padding-top:36px; padding-bottom:36px;">
   <?php if ($confirmedGroupId): ?>
     <div class="card">
       <h1 style="font-size:1.4rem; color:var(--sky-deep);">Order placed — #<?= $confirmedGroupId ?></h1>
@@ -191,5 +182,4 @@ if (is_post()) {
     </div>
   <?php endif; ?>
 </div>
-</body>
-</html>
+<?php require __DIR__ . '/includes/public-footer.php'; ?>

@@ -3,23 +3,53 @@ require __DIR__ . '/includes/bootstrap.php';
 
 if (is_post()) {
     csrf_verify();
-    $catchItemId = (int)($_POST['catch_item_id'] ?? 0);
-    cart_add($catchItemId);
+    cart_add((int)($_POST['catch_item_id'] ?? 0));
     flash('success', 'Added to your cart.');
-    redirect('/shop.php');
+    // Preserve current filters through the redirect.
+    $qs = $_GET ? ('?' . http_build_query($_GET)) : '';
+    redirect('/shop.php' . $qs);
 }
 
-// Every posted fish stays visible — available ones sell normally, sold
-// ones show as "Sold" so visitors can see what came off the boat today,
-// not just what's still buyable. Only "pulled" (captain-removed, e.g.
-// posted by mistake) listings are hidden entirely.
-$listings = db()->query(
-    "SELECT ci.*, s.name AS species_name, s.name_ar AS species_name_ar, s.latin_name, s.image_path AS species_image
+// ---- Filters & sorting (server-side, GET-based) ----
+$speciesFilter = isset($_GET['species']) ? (int)$_GET['species'] : 0;
+$showFilter = $_GET['show'] ?? 'all';           // all | available
+$sort = $_GET['sort'] ?? 'freshest';            // freshest | price_low | price_high
+
+$where = ["ci.status IN ('available','sold_out')", "t.status != 'cancelled'"];
+$params = [];
+if ($speciesFilter > 0) {
+    $where[] = 'ci.species_id = ?';
+    $params[] = $speciesFilter;
+}
+if ($showFilter === 'available') {
+    $where[] = "ci.status = 'available'";
+}
+
+$orderBy = match ($sort) {
+    'price_low'  => '(ci.price_per_kg_aed * ci.weight_kg) ASC',
+    'price_high' => '(ci.price_per_kg_aed * ci.weight_kg) DESC',
+    default      => "(ci.status = 'available') DESC, ci.posted_at DESC",
+};
+
+$stmt = db()->prepare(
+    "SELECT ci.*, s.name AS species_name, s.name_ar AS species_name_ar, s.image_path AS species_image,
+            b.name AS boat_name
      FROM catch_items ci
      JOIN species s ON s.id = ci.species_id
      JOIN trips t ON t.id = ci.trip_id
+     LEFT JOIN boats b ON b.id = t.boat_id
+     WHERE " . implode(' AND ', $where) . "
+     ORDER BY $orderBy"
+);
+$stmt->execute($params);
+$listings = $stmt->fetchAll();
+
+$speciesOptions = db()->query(
+    "SELECT DISTINCT s.id, s.name FROM species s
+     JOIN catch_items ci ON ci.species_id = s.id
+     JOIN trips t ON t.id = ci.trip_id
      WHERE ci.status IN ('available','sold_out') AND t.status != 'cancelled'
-     ORDER BY (ci.status = 'available') DESC, ci.posted_at DESC"
+     ORDER BY s.name"
 )->fetchAll();
 
 $liveTrip = db()->query(
@@ -29,107 +59,103 @@ $liveTrip = db()->query(
      WHERE ls.status = 'live' LIMIT 1"
 )->fetch();
 
+$availableCount = count(array_filter($listings, fn($l) => $l['status'] === 'available'));
 $cartIds = array_keys($_SESSION['cart'] ?? []);
+
+$pageTitle = 'Catch of the Day';
+$activeNav = 'shop';
+require __DIR__ . '/includes/public-header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Catch of the Day — Capitony</title>
-<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Source+Serif+4&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/app.css">
-<style>
-  .product-card.sold{opacity:0.55;}
-  .product-card.sold .product-photo{position:relative;}
-  .sold-badge{
-    display:inline-block; background:var(--danger); color:var(--chalk); font-family:var(--display);
-    font-size:0.7rem; letter-spacing:0.05em; padding:4px 10px; margin-bottom:8px;
-  }
-  .live-banner{
-    background:var(--amber); color:var(--chalk); padding:12px 18px; margin-bottom:20px;
-    display:flex; align-items:center; gap:10px; font-family:var(--display); font-size:0.85rem; letter-spacing:0.04em;
-  }
-  .live-dot{width:8px; height:8px; border-radius:50%; background:var(--chalk); animation:pulse 1.6s infinite;}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.6);}70%{box-shadow:0 0 0 8px rgba(255,255,255,0);}100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}}
-  .catch-time{font-family:var(--mono); font-size:0.72rem; color:var(--scale); margin:6px 0 12px;}
-  .catch-time .time-ago{color:var(--amber-dark); font-weight:600;}
-</style>
-</head>
-<body>
-<?php require __DIR__ . '/includes/public-nav.php'; ?>
 
-<div class="wrap">
-  <h1 style="font-size:1.5rem; margin:24px 0 6px;">Catch of the Day</h1>
-  <p style="color:var(--scale); margin-bottom:20px;">Every fish is posted individually as it's weighed in. Once it's bought, it stays on the board marked sold — this is today's real catch, not just what's left.</p>
+<?php if ($liveTrip): ?>
+<div class="live-banner"><span class="live-dot"></span> Live now — <?= e($liveTrip['boat_name'] ?? 'the boat') ?> is out fishing</div>
+<?php endif; ?>
 
-  <?php if ($liveTrip): ?>
-    <div class="live-banner">
-      <span class="live-dot"></span> LIVE NOW — <?= e($liveTrip['boat_name'] ?? 'the boat') ?> is out fishing right now
+<section class="section" style="padding-top:52px;">
+  <div class="wrap">
+    <div class="section-head" style="margin-bottom:26px;">
+      <span class="eyebrow">The Board</span>
+      <h2>Catch of the Day</h2>
+      <p>Every fish posted individually as it's weighed in. Sold fish stay on the board — this is today's real catch, not just what's left of it.</p>
     </div>
-  <?php endif; ?>
 
-  <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>
+    <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>
 
-  <?php if (!$listings): ?>
-    <div class="card">Nothing on the board right now — check back once a trip is out.</div>
-  <?php endif; ?>
-
-  <div class="product-grid">
-    <?php foreach ($listings as $l):
-      $isSold = $l['status'] === 'sold_out';
-      $inCart = in_array($l['id'], $cartIds);
-    ?>
-    <div class="product-card <?= $isSold ? 'sold' : '' ?>">
-      <div class="product-photo">
-        <?php if ($l['photo_path'] ?? $l['species_image']): ?>
-          <img src="<?= e($l['photo_path'] ?: $l['species_image']) ?>" alt="<?= e($l['species_name']) ?>">
-        <?php endif; ?>
-      </div>
-      <?php if ($isSold): ?><span class="sold-badge">SOLD</span><?php endif; ?>
-      <h3><?= e($l['species_name']) ?></h3>
-      <?php if ($l['species_name_ar']): ?><div class="ar-name"><?= e($l['species_name_ar']) ?></div><?php endif; ?>
-      <div class="remaining"><?= number_format($l['weight_kg'], 1) ?> kg</div>
-      <div class="price">AED <?= number_format($l['price_per_kg_aed'] * $l['weight_kg'], 0) ?></div>
-      <div class="catch-time" data-posted-epoch="<?= utc_to_epoch_ms($l['posted_at']) ?>">
-        Caught <?= e(utc_to_local($l['posted_at'])) ?> &middot; <span class="time-ago">just now</span>
-      </div>
-
-      <?php if ($isSold): ?>
-        <button class="btn btn-block" style="background:var(--foam-dim); color:var(--scale);" disabled>Sold</button>
-      <?php elseif ($inCart): ?>
-        <a href="/cart.php" class="btn btn-block" style="background:var(--foam-dim); text-align:center;">In Your Cart</a>
-      <?php else: ?>
-        <form method="post">
-          <?= csrf_field() ?>
-          <input type="hidden" name="catch_item_id" value="<?= (int)$l['id'] ?>">
-          <button type="submit" class="btn btn-amber btn-block">Add to Cart</button>
-        </form>
-      <?php endif; ?>
+    <div class="plp-toolbar">
+      <span class="count"><?= $availableCount ?> available · <?= count($listings) ?> caught today</span>
+      <form method="get">
+        <select name="species" onchange="this.form.submit()">
+          <option value="0">All species</option>
+          <?php foreach ($speciesOptions as $so): ?>
+            <option value="<?= (int)$so['id'] ?>" <?= $speciesFilter === (int)$so['id'] ? 'selected' : '' ?>><?= e($so['name']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <select name="show" onchange="this.form.submit()">
+          <option value="all" <?= $showFilter === 'all' ? 'selected' : '' ?>>Show everything</option>
+          <option value="available" <?= $showFilter === 'available' ? 'selected' : '' ?>>Available only</option>
+        </select>
+        <select name="sort" onchange="this.form.submit()">
+          <option value="freshest" <?= $sort === 'freshest' ? 'selected' : '' ?>>Freshest first</option>
+          <option value="price_low" <?= $sort === 'price_low' ? 'selected' : '' ?>>Price: low to high</option>
+          <option value="price_high" <?= $sort === 'price_high' ? 'selected' : '' ?>>Price: high to low</option>
+        </select>
+      </form>
     </div>
-    <?php endforeach; ?>
+
+    <?php if (!$listings): ?>
+      <div class="card">Nothing on the board right now — check back once a trip is out, or <a href="https://www.instagram.com/el.capitony/" style="color:var(--sun-deep);">follow the boat on Instagram</a>.</div>
+    <?php endif; ?>
+
+    <div class="product-grid">
+      <?php foreach ($listings as $l):
+        $isSold = $l['status'] === 'sold_out';
+        $inCart = in_array($l['id'], $cartIds);
+      ?>
+      <div class="pcard <?= $isSold ? 'sold' : '' ?>">
+        <div class="photo">
+          <?php if ($isSold): ?><span class="badge-sold">Sold</span><?php endif; ?>
+          <?php if ($l['photo_path'] ?? $l['species_image']): ?>
+            <img src="<?= e($l['photo_path'] ?: $l['species_image']) ?>" alt="<?= e($l['species_name']) ?>" loading="lazy">
+          <?php endif; ?>
+        </div>
+        <div class="body">
+          <h3><?= e($l['species_name']) ?></h3>
+          <?php if ($l['species_name_ar']): ?><div class="ar"><?= e($l['species_name_ar']) ?></div><?php endif; ?>
+          <div class="logbook">
+            <span>⚖ <b><?= number_format($l['weight_kg'], 1) ?> kg</b></span>
+            <span>⛵ <b><?= e($l['boat_name'] ?? 'Tony II') ?></b></span>
+          </div>
+          <div class="logbook">
+            <span>🕐 Caught <b><?= e(utc_to_local($l['posted_at'])) ?></b> · <span class="fresh time-ago" data-posted-epoch="<?= utc_to_epoch_ms($l['posted_at']) ?>">just now</span></span>
+          </div>
+          <div class="price">
+            AED <?= number_format($l['price_per_kg_aed'] * $l['weight_kg'], 0) ?>
+            <small>whole fish · AED <?= number_format($l['price_per_kg_aed'], 0) ?>/kg</small>
+          </div>
+          <div class="cta">
+            <?php if ($isSold): ?>
+              <button class="btn btn-quiet btn-block" disabled>Sold</button>
+            <?php elseif ($inCart): ?>
+              <a href="/cart.php" class="btn btn-quiet btn-block">In Your Cart — View</a>
+            <?php else: ?>
+              <form method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="catch_item_id" value="<?= (int)$l['id'] ?>">
+                <button type="submit" class="btn btn-sun btn-block">Add to Cart</button>
+              </form>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
   </div>
-</div>
+</section>
 
 <script>
-function formatTimeAgo(ms) {
-  var mins = Math.max(0, Math.floor(ms / 60000));
-  if (mins < 1) return 'just now';
-  if (mins < 60) return mins + ' min ago';
-  var hrs = Math.floor(mins / 60);
-  var remMins = mins % 60;
-  return hrs + 'h ' + remMins + 'm ago';
-}
-function updateCatchTimes() {
-  document.querySelectorAll('.catch-time').forEach(function (el) {
-    var postedEpoch = parseInt(el.getAttribute('data-posted-epoch'), 10);
-    var elapsed = Date.now() - postedEpoch;
-    var span = el.querySelector('.time-ago');
-    if (span) span.textContent = formatTimeAgo(elapsed);
-  });
-}
-updateCatchTimes();
-setInterval(updateCatchTimes, 30000); // refresh every 30s — minute-level precision doesn't need more
+function formatTimeAgo(ms){var m=Math.max(0,Math.floor(ms/60000));if(m<1)return'just now';if(m<60)return m+' min ago';var h=Math.floor(m/60);return h+'h '+(m%60)+'m ago';}
+function tick(){document.querySelectorAll('.time-ago').forEach(function(el){el.textContent=formatTimeAgo(Date.now()-parseInt(el.getAttribute('data-posted-epoch'),10));});}
+tick();setInterval(tick,30000);
 </script>
-</body>
-</html>
+
+<?php require __DIR__ . '/includes/public-footer.php'; ?>

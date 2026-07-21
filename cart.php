@@ -43,20 +43,11 @@ function service_summary(array $line): string
     if ($line['cook']) $parts[] = 'Cook';
     return implode(' + ', $parts);
 }
+$pageTitle = 'Your Cart';
+require __DIR__ . '/includes/public-header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Your Cart — Capitony</title>
-<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Source+Serif+4&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/app.css">
-</head>
-<body>
-<?php require __DIR__ . '/includes/public-nav.php'; ?>
 
-<div class="wrap">
+<div class="wrap" style="padding-top:36px; padding-bottom:36px;">
   <h1 style="font-size:1.5rem; margin:24px 0 16px;">Your Cart</h1>
 
   <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>
@@ -159,5 +150,4 @@ function service_summary(array $line): string
 
   <?php endif; ?>
 </div>
-</body>
-</html>
+<?php require __DIR__ . '/includes/public-footer.php'; ?>

@@ -1,3 +1,13 @@
+# ============================================================
+# PRE-LAUNCH PASSWORD GATE — remove this whole block on launch day.
+# Protects the entire site (public pages + admin/captain) with a
+# single shared password, on top of the app's own login system.
+# ============================================================
+AuthType Basic
+AuthName "Capitony — Preview"
+AuthUserFile /home/u290432494/domains/capitony.live/public_html/.htpasswd
+Require valid-user
+
 # Block access to dotfiles (.git, .gitignore, .htaccess itself, etc.)
 <FilesMatch "^\.">
     Require all denied

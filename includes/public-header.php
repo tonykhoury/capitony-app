@@ -14,7 +14,7 @@ $activeNav = $activeNav ?? '';
 <meta name="description" content="Fresh fish straight off the boat in Dubai Marina. Watch the trip live, buy the catch as it's weighed in — delivered, cleaned, cooked, or picked up at the harbor.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/site.css?v=<?= @filemtime(__DIR__ . '/../assets/css/site.css') ?: time() ?>">
 </head>
 <body>
 <header class="site-header">

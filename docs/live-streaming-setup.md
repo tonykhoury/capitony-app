@@ -41,7 +41,7 @@ docker run -d \
   --name capitony-stream \
   --restart unless-stopped \
   -p 1935:1935 \
-  -p 8080:8080 \
+  -p 8080:80 \
   -v /opt/rtmp/hls:/opt/data/hls \
   alfg/nginx-rtmp
 ```

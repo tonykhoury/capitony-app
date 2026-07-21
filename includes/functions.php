@@ -136,12 +136,23 @@ function handle_image_upload(string $fieldName, string $subfolder): ?string
     $filename = bin2hex(random_bytes(12)) . '.jpg';
     $destPath = $uploadDir . '/' . $filename;
 
-    // Flatten transparency onto white before saving as JPEG (PNG/WEBP may have alpha).
+    // Flatten transparency onto white before saving as JPEG (PNG/WEBP may have alpha),
+    // and downscale anything larger than needed for web display — phone cameras
+    // routinely produce 3000px+ images, which is wasted bandwidth for a browser.
     $width = imagesx($srcImage);
     $height = imagesy($srcImage);
-    $flat = imagecreatetruecolor($width, $height);
+    $maxDim = 1600;
+    if ($width > $maxDim || $height > $maxDim) {
+        $scale = $maxDim / max($width, $height);
+        $newWidth = (int)round($width * $scale);
+        $newHeight = (int)round($height * $scale);
+    } else {
+        $newWidth = $width;
+        $newHeight = $height;
+    }
+    $flat = imagecreatetruecolor($newWidth, $newHeight);
     imagefill($flat, 0, 0, imagecolorallocate($flat, 255, 255, 255));
-    imagecopy($flat, $srcImage, 0, 0, 0, 0, $width, $height);
+    imagecopyresampled($flat, $srcImage, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
     imagejpeg($flat, $destPath, 85);
     imagedestroy($srcImage);
     imagedestroy($flat);

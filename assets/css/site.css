@@ -135,6 +135,14 @@ textarea{resize:vertical;}
 .service-chip-group input{margin:0;width:auto;}
 .warning-box{background:#FBF3E3;border-left:4px solid var(--sun);padding:13px 15px;font-size:0.89rem;margin-bottom:16px;}
 
+/* ---------- masonry gallery (photo album) — no cropping, natural aspect ratios ---------- */
+.masonry-grid{column-count:1; column-gap:18px;}
+@media (min-width:560px){ .masonry-grid{column-count:2;} }
+@media (min-width:900px){ .masonry-grid{column-count:3;} }
+.masonry-item{break-inside:avoid; margin-bottom:18px; background:var(--chalk); border:1px solid var(--shell-dim); overflow:hidden;}
+.masonry-item img, .masonry-item video{width:100%; height:auto; display:block;}
+.masonry-caption{padding:10px 14px; font-size:0.85rem; color:#4E626B;}
+
 /* ---------- footer ---------- */
 .site-footer{background:var(--gulf-deep);color:#9FBAC3;margin-top:90px;}
 .site-footer .cols{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:44px;padding:60px 24px 40px;max-width:1200px;margin:0 auto;}

@@ -27,14 +27,12 @@ require __DIR__ . '/includes/public-header.php';
 <section class="section" style="padding-top:0; padding-bottom:20px;">
   <div class="wrap">
     <h3 style="font-size:1.15rem; color:var(--navy); margin-bottom:18px;">Photos</h3>
-    <div class="product-grid">
+    <div class="masonry-grid">
       <?php foreach ($photos as $item): ?>
-      <div class="pcard" style="cursor:default;">
-        <div class="photo" style="aspect-ratio:4/3;">
-          <img src="<?= e($item['file_path']) ?>" alt="<?= e($item['caption'] ?? '') ?>" loading="lazy">
-        </div>
+      <div class="masonry-item">
+        <img src="<?= e($item['file_path']) ?>" alt="<?= e($item['caption'] ?? '') ?>" loading="lazy">
         <?php if ($item['caption']): ?>
-          <div class="body"><p style="font-size:0.88rem; color:#4E626B;"><?= e($item['caption']) ?></p></div>
+          <div class="masonry-caption"><?= e($item['caption']) ?></div>
         <?php endif; ?>
       </div>
       <?php endforeach; ?>
@@ -47,14 +45,12 @@ require __DIR__ . '/includes/public-header.php';
 <section class="section" style="padding-top:20px;">
   <div class="wrap">
     <h3 style="font-size:1.15rem; color:var(--navy); margin-bottom:18px;">Videos</h3>
-    <div class="product-grid">
+    <div class="masonry-grid">
       <?php foreach ($videos as $item): ?>
-      <div class="pcard" style="cursor:default;">
-        <div class="photo" style="aspect-ratio:4/3;">
-          <video src="<?= e($item['file_path']) ?>" controls playsinline preload="metadata" style="width:100%; height:100%; object-fit:cover;"></video>
-        </div>
+      <div class="masonry-item">
+        <video src="<?= e($item['file_path']) ?>" controls playsinline preload="metadata"></video>
         <?php if ($item['caption']): ?>
-          <div class="body"><p style="font-size:0.88rem; color:#4E626B;"><?= e($item['caption']) ?></p></div>
+          <div class="masonry-caption"><?= e($item['caption']) ?></div>
         <?php endif; ?>
       </div>
       <?php endforeach; ?>

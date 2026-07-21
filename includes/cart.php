@@ -100,6 +100,7 @@ function cart_get_lines(): array
 
         $lines[] = [
             'catch_item_id'   => (int)$catchItemId,
+            'sku'             => $item['sku'],
             'species_name'    => $item['species_name'],
             'species_name_ar' => $item['species_name_ar'],
             'species_image'   => $item['species_image'],

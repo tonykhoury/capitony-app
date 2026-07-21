@@ -33,11 +33,19 @@ if (is_post()) {
                 $error = $e->getMessage();
             }
             if (!$error) {
-                db()->prepare(
+                $pdo = db();
+                $pdo->prepare(
                     'INSERT INTO catch_items (trip_id, species_id, weight_kg, price_per_kg_aed, photo_path, posted_by)
                      VALUES (?, ?, ?, ?, ?, ?)'
                 )->execute([$tripId, $speciesId, $weight, $price, $imagePath, $user['id']]);
-                flash('success', 'Posted to the Catch of the Day board.');
+
+                // SKU derived from the row's own auto-increment ID — guarantees
+                // uniqueness for free, no separate counter/race condition to manage.
+                $newId = (int)$pdo->lastInsertId();
+                $sku = 'CAP-' . str_pad((string)$newId, 6, '0', STR_PAD_LEFT);
+                $pdo->prepare('UPDATE catch_items SET sku = ? WHERE id = ?')->execute([$sku, $newId]);
+
+                flash('success', "Posted to the Catch of the Day board. SKU: {$sku}");
                 redirect('/captain/catch.php?trip_id=' . $tripId);
             }
         }
@@ -115,9 +123,10 @@ $catchItems = $catchItems->fetchAll();
   <div class="card">
     <h2 style="font-size:1.1rem;">Today's Postings</h2>
     <table>
-      <tr><th>Species</th><th>Weight</th><th>Price/kg</th><th>Posted</th><th>Status</th><th></th></tr>
+      <tr><th>SKU</th><th>Species</th><th>Weight</th><th>Price/kg</th><th>Posted</th><th>Status</th><th></th></tr>
       <?php foreach ($catchItems as $ci): ?>
       <tr>
+        <td style="font-family:var(--mono); font-size:0.78rem;"><?= e($ci['sku'] ?? '—') ?></td>
         <td><?= e($ci['species_name']) ?></td>
         <td><?= number_format($ci['weight_kg'], 1) ?> kg</td>
         <td>AED <?= number_format($ci['price_per_kg_aed'], 0) ?></td>
@@ -125,7 +134,10 @@ $catchItems = $catchItems->fetchAll();
           <?= e(utc_to_local($ci['posted_at'])) ?> &middot; <span class="time-ago">just now</span>
         </td>
         <td><?= e($ci['status']) ?></td>
-        <td>
+        <td style="white-space:nowrap;">
+          <?php if ($ci['sku']): ?>
+          <a href="/captain/print-label.php?id=<?= (int)$ci['id'] ?>" target="_blank" class="btn" style="background:var(--sky); color:var(--chalk); font-size:0.7rem; padding:6px 10px;">Print Label</a>
+          <?php endif; ?>
           <?php if ($ci['status'] === 'available'): ?>
           <form method="post" style="display:inline;">
             <?= csrf_field() ?>
@@ -139,7 +151,7 @@ $catchItems = $catchItems->fetchAll();
       </tr>
       <?php endforeach; ?>
       <?php if (!$catchItems): ?>
-      <tr><td colspan="6" style="color:var(--scale);">Nothing posted yet.</td></tr>
+      <tr><td colspan="7" style="color:var(--scale);">Nothing posted yet.</td></tr>
       <?php endif; ?>
     </table>
   </div>

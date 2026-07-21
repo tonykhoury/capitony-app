@@ -86,12 +86,12 @@ if (is_post()) {
 
             foreach ($verifiedLines as $line) {
                 $pdo->prepare(
-                    'INSERT INTO orders (order_group_id, catch_item_id, visitor_name, visitor_phone, quantity_kg,
+                    'INSERT INTO orders (order_group_id, catch_item_id, sku, visitor_name, visitor_phone, quantity_kg,
                         service_pickup, service_deliver, service_clean, service_cook, clean_fee_aed, cook_fee_aed,
                         delivery_address, total_price_aed)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                 )->execute([
-                    $groupId, $line['catch_item_id'], $name, $phone, $line['quantity_kg'],
+                    $groupId, $line['catch_item_id'], $line['sku'], $name, $phone, $line['quantity_kg'],
                     $line['method'] === 'pickup' ? 1 : 0,
                     $line['method'] === 'deliver' ? 1 : 0,
                     $line['clean'] ? 1 : 0,
@@ -128,6 +128,13 @@ require __DIR__ . '/includes/public-header.php';
     <div class="card">
       <h1 style="font-size:1.4rem; color:var(--sky-deep);">Order placed — #<?= $confirmedGroupId ?></h1>
       <p style="margin-top:10px;">We'll reach out on the phone number you gave us to confirm details. Thanks for buying straight off the boat.</p>
+      <?php if (!empty($verifiedLines)): ?>
+        <div style="margin-top:16px; font-family:var(--mono); font-size:0.85rem; color:var(--gulf-deep);">
+          <?php foreach ($verifiedLines as $vl): ?>
+            <div><?= e($vl['sku'] ?? '—') ?> — <?= e($vl['species_name']) ?> (<?= number_format($vl['quantity_kg'], 1) ?> kg)</div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
       <a href="/shop.php" class="btn btn-amber" style="margin-top:16px;">Back to Catch of the Day</a>
     </div>
   <?php else: ?>
@@ -141,6 +148,7 @@ require __DIR__ . '/includes/public-header.php';
           <?php if ($line['species_image']): ?><img src="<?= e($line['species_image']) ?>" alt=""><?php else: ?><div style="width:70px;height:52px;background:var(--foam-dim);"></div><?php endif; ?>
           <div>
             <strong><?= e($line['species_name']) ?></strong> — <?= number_format($line['quantity_kg'], 1) ?> kg
+            <span style="font-family:var(--mono); font-size:0.72rem; color:var(--scale);">(<?= e($line['sku'] ?? '—') ?>)</span>
             <div class="meta">
               <?= $line['method'] === 'deliver' ? 'Deliver' : 'Pickup' ?><?= $line['clean'] ? ' + Clean' : '' ?><?= $line['cook'] ? ' + Cook' : '' ?>
               <?php if ($line['clean_fee'] > 0 || $line['cook_fee'] > 0): ?>

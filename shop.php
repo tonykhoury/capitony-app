@@ -124,6 +124,7 @@ require __DIR__ . '/includes/public-header.php';
           <div class="logbook">
             <span>⚖ <b><?= number_format($l['weight_kg'], 1) ?> kg</b></span>
             <span>⛵ <b><?= e($l['boat_name'] ?? 'Tony II') ?></b></span>
+            <span>🏷 <b><?= e($l['sku'] ?? '—') ?></b></span>
           </div>
           <div class="logbook">
             <span>🕐 Caught <b><?= e(utc_to_local($l['posted_at'])) ?></b> · <span class="fresh time-ago" data-posted-epoch="<?= utc_to_epoch_ms($l['posted_at']) ?>">just now</span></span>

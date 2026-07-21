@@ -106,6 +106,14 @@ most Hostinger plans don't include SSH by default:
 - **Cart**: session-based (no visitor accounts). Set pickup/delivery +
   clean/cook once and apply to every item in the cart with a clear warning
   about what that does, or override any single item afterward
+- **SKU per catch**: every posted fish gets a unique SKU (`CAP-000123`,
+  derived from its own database ID, so uniqueness is free) the moment a
+  captain posts it. Shown on the captain's postings table, the shop PLP,
+  cart, and checkout — and stored directly on `orders.sku` too
+  (denormalized on purpose) so future automation/fulfillment tooling can
+  query by SKU without a join. Captains can print a label per fish
+  (species, weight, SKU, and a QR code encoding the SKU) from
+  `/captain/print-label.php?id=X`, linked from the postings table.
 - **Checkout**: re-verifies stock inside a DB transaction (so two people
   can't both buy the last kilo of grouper), creates an `order_groups`
   receipt plus one `orders` line per fish, decrements remaining stock

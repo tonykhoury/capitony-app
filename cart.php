@@ -89,6 +89,7 @@ require __DIR__ . '/includes/public-header.php';
         <?php endif; ?>
         <div>
           <strong><?= e($line['species_name']) ?></strong> — <?= number_format($line['quantity_kg'], 1) ?> kg
+          <span style="font-family:var(--mono); font-size:0.72rem; color:var(--scale);">(<?= e($line['sku'] ?? '—') ?>)</span>
           <div class="meta">
             AED <?= number_format($line['subtotal'], 2) ?>
             <?php if ($line['clean_fee'] > 0 || $line['cook_fee'] > 0): ?>

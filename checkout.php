@@ -21,12 +21,35 @@ if (is_post()) {
     csrf_verify();
     $name = trim($_POST['visitor_name'] ?? '');
     $phone = normalize_phone($_POST['visitor_phone'] ?? '');
-    $address = trim($_POST['delivery_address'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+
+    $emirate = trim($_POST['emirate'] ?? '');
+    $city = trim($_POST['city'] ?? '');
+    $neighborhood = trim($_POST['neighborhood'] ?? '');
+    $street = trim($_POST['street'] ?? '');
+    $building = trim($_POST['building'] ?? '');
+    $apartmentVilla = trim($_POST['apartment_villa'] ?? '');
+    $landmark = trim($_POST['landmark'] ?? '');
+    $makani = trim($_POST['makani_number'] ?? '');
+
+    // Human-readable single-line version, built from the structured fields —
+    // kept for display anywhere that just wants one address string (order
+    // detail view, delivery driver instructions, etc).
+    $addressParts = array_filter([
+        $apartmentVilla, $building, $street, $neighborhood, $city, $emirate,
+        $landmark ? "(near {$landmark})" : null,
+        $makani ? "Makani: {$makani}" : null,
+    ]);
+    $formattedAddress = implode(', ', $addressParts);
 
     if ($name === '' || $phone === '') {
         $error = 'Name and phone number are required.';
-    } elseif ($needsAddress && $address === '') {
-        $error = 'Please add a delivery address — at least one item in your cart is set for delivery.';
+    } elseif ($email === '') {
+        $error = 'Email address is required.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'Please enter a valid email address.';
+    } elseif ($needsAddress && ($emirate === '' || $city === '' || $street === '' || $building === '' || $apartmentVilla === '')) {
+        $error = 'Please fill in Emirate, City, Street, Building, and Apartment/Villa — at least one item in your cart is set for delivery.';
     } else {
         $pdo = db();
         try {
@@ -79,9 +102,19 @@ if (is_post()) {
             }
 
             $groupStmt = $pdo->prepare(
-                'INSERT INTO order_groups (visitor_name, visitor_phone, delivery_address, delivery_fee_aed, total_price_aed) VALUES (?, ?, ?, ?, ?)'
+                'INSERT INTO order_groups (visitor_name, visitor_phone, email, delivery_address,
+                    emirate, city, neighborhood, street, building, apartment_villa, landmark, makani_number,
+                    delivery_fee_aed, total_price_aed)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
-            $groupStmt->execute([$name, $phone, $address ?: null, $anyDelivery ? $deliveryFeeAed : 0, $total]);
+            $groupStmt->execute([
+                $name, $phone, $email, $anyDelivery ? $formattedAddress : null,
+                $anyDelivery ? $emirate : null, $anyDelivery ? $city : null,
+                $anyDelivery ? ($neighborhood ?: null) : null, $anyDelivery ? $street : null,
+                $anyDelivery ? $building : null, $anyDelivery ? $apartmentVilla : null,
+                $anyDelivery ? ($landmark ?: null) : null, $anyDelivery ? ($makani ?: null) : null,
+                $anyDelivery ? $deliveryFeeAed : 0, $total,
+            ]);
             $groupId = (int)$pdo->lastInsertId();
 
             foreach ($verifiedLines as $line) {
@@ -98,7 +131,7 @@ if (is_post()) {
                     $line['cook'] ? 1 : 0,
                     $line['clean_fee'],
                     $line['cook_fee'],
-                    $line['method'] === 'deliver' ? $address : null,
+                    $line['method'] === 'deliver' ? $formattedAddress : null,
                     $line['subtotal'],
                 ]);
 
@@ -177,12 +210,58 @@ require __DIR__ . '/includes/public-header.php';
         <label for="visitor_name">Full name</label>
         <input type="text" id="visitor_name" name="visitor_name" required value="<?= e($_POST['visitor_name'] ?? '') ?>">
 
-        <label for="visitor_phone">Phone (WhatsApp preferred)</label>
-        <input type="tel" id="visitor_phone" name="visitor_phone" required placeholder="+971..." value="<?= e($_POST['visitor_phone'] ?? '') ?>">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 18px;">
+          <div>
+            <label for="visitor_phone">Phone (WhatsApp preferred)</label>
+            <input type="tel" id="visitor_phone" name="visitor_phone" required placeholder="+971..." value="<?= e($_POST['visitor_phone'] ?? '') ?>">
+          </div>
+          <div>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required value="<?= e($_POST['email'] ?? '') ?>">
+          </div>
+        </div>
 
         <?php if ($needsAddress): ?>
-        <label for="delivery_address">Delivery address</label>
-        <textarea id="delivery_address" name="delivery_address" rows="3" required><?= e($_POST['delivery_address'] ?? '') ?></textarea>
+        <h3 style="font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--mist); margin:20px 0 10px;">Delivery Address</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 18px;">
+          <div>
+            <label for="emirate">Emirate</label>
+            <select id="emirate" name="emirate" required>
+              <option value="">— select —</option>
+              <?php foreach (['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Umm Al Quwain', 'Ras Al Khaimah', 'Fujairah'] as $em): ?>
+                <option value="<?= e($em) ?>" <?= ($_POST['emirate'] ?? '') === $em ? 'selected' : '' ?>><?= e($em) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div>
+            <label for="city">City / Area</label>
+            <input type="text" id="city" name="city" required value="<?= e($_POST['city'] ?? '') ?>">
+          </div>
+          <div>
+            <label for="neighborhood">Neighborhood (optional)</label>
+            <input type="text" id="neighborhood" name="neighborhood" value="<?= e($_POST['neighborhood'] ?? '') ?>">
+          </div>
+          <div>
+            <label for="street">Street</label>
+            <input type="text" id="street" name="street" required value="<?= e($_POST['street'] ?? '') ?>">
+          </div>
+          <div>
+            <label for="building">Building name/number</label>
+            <input type="text" id="building" name="building" required value="<?= e($_POST['building'] ?? '') ?>">
+          </div>
+          <div>
+            <label for="apartment_villa">Apartment / Villa number</label>
+            <input type="text" id="apartment_villa" name="apartment_villa" required value="<?= e($_POST['apartment_villa'] ?? '') ?>">
+          </div>
+          <div>
+            <label for="landmark">Nearest landmark (optional)</label>
+            <input type="text" id="landmark" name="landmark" value="<?= e($_POST['landmark'] ?? '') ?>">
+          </div>
+          <div>
+            <label for="makani_number">Makani number (optional)</label>
+            <input type="text" id="makani_number" name="makani_number" value="<?= e($_POST['makani_number'] ?? '') ?>">
+          </div>
+        </div>
         <?php endif; ?>
 
         <button type="submit" class="btn btn-amber btn-block">Place Order</button>

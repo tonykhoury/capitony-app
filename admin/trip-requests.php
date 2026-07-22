@@ -37,7 +37,10 @@ $requests = db()->query(
   <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>
 
   <div class="card">
-    <h2 style="font-size:1.1rem;">Trip Requests</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <h2 style="font-size:1.1rem; margin:0;">Trip Requests</h2>
+      <a href="/admin/export-trip-requests.php" class="btn" style="background:var(--foam-dim); font-size:0.75rem; padding:8px 14px;">Export CSV</a>
+    </div>
     <table>
       <tr><th>Trip</th><th>Requested By</th><th>Seats</th><th>Status</th><th></th></tr>
       <?php foreach ($requests as $r): ?>

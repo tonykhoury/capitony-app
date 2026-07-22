@@ -28,11 +28,16 @@ $withEmail = count(array_filter($alerts, fn($a) => !empty($a['visitor_email'])))
 
 <div class="wrap">
   <div class="card">
-    <h2 style="font-size:1.1rem;">Catch Alert Subscribers</h2>
-    <p style="color:var(--scale); font-size:0.85rem; margin-top:-8px;">
-      <?= count($alerts) ?> total subscribers · <?= $withEmail ?> with an email on file.
-      This list grows as visitors sign up for alerts — useful for future promotions beyond just catch notifications.
-    </p>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <h2 style="font-size:1.1rem;">Catch Alert Subscribers</h2>
+        <p style="color:var(--scale); font-size:0.85rem;">
+          <?= count($alerts) ?> total subscribers · <?= $withEmail ?> with an email on file.
+          This list grows as visitors sign up for alerts — useful for future promotions beyond just catch notifications.
+        </p>
+      </div>
+      <a href="/admin/export-customers.php" class="btn" style="background:var(--foam-dim); font-size:0.75rem; padding:8px 14px; white-space:nowrap;">Export CSV</a>
+    </div>
     <table>
       <tr><th>Name</th><th>Phone</th><th>Email</th><th>Species</th><th>Weight</th><th>Status</th><th>Joined</th></tr>
       <?php foreach ($alerts as $a): ?>

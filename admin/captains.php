@@ -6,26 +6,37 @@ $error = null;
 
 if (is_post()) {
     csrf_verify();
-    $name = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = normalize_phone($_POST['phone'] ?? '');
-    $password = $_POST['password'] ?? '';
+    $action = $_POST['action'] ?? 'create_captain';
 
-    if ($name === '' || $email === '' || strlen($password) < 8) {
-        $error = 'Name, email, and a password of at least 8 characters are required.';
-    } else {
-        $exists = db()->prepare('SELECT id FROM users WHERE email = ?');
-        $exists->execute([$email]);
-        if ($exists->fetch()) {
-            $error = 'That email is already registered.';
+    if ($action === 'create_captain') {
+        $name = trim($_POST['name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $phone = normalize_phone($_POST['phone'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if ($name === '' || $email === '' || strlen($password) < 8) {
+            $error = 'Name, email, and a password of at least 8 characters are required.';
         } else {
-            $stmt = db()->prepare(
-                'INSERT INTO users (role, name, email, phone, password_hash) VALUES ("captain", ?, ?, ?, ?)'
-            );
-            $stmt->execute([$name, $email, $phone, password_hash($password, PASSWORD_DEFAULT)]);
-            flash('success', "Captain account created for {$name}.");
-            redirect('/admin/captains.php');
+            $exists = db()->prepare('SELECT id FROM users WHERE email = ?');
+            $exists->execute([$email]);
+            if ($exists->fetch()) {
+                $error = 'That email is already registered.';
+            } else {
+                $stmt = db()->prepare(
+                    'INSERT INTO users (role, name, email, phone, password_hash) VALUES ("captain", ?, ?, ?, ?)'
+                );
+                $stmt->execute([$name, $email, $phone, password_hash($password, PASSWORD_DEFAULT)]);
+                flash('success', "Captain account created for {$name}.");
+                redirect('/admin/captains.php');
+            }
         }
+    } elseif ($action === 'reset_password') {
+        $captainId = (int)($_POST['captain_id'] ?? 0);
+        $newPassword = bin2hex(random_bytes(6)); // simple, readable temp password
+        db()->prepare("UPDATE users SET password_hash = ? WHERE id = ? AND role = 'captain'")
+            ->execute([password_hash($newPassword, PASSWORD_DEFAULT), $captainId]);
+        flash('success', "Password reset. New temporary password: {$newPassword} — share this with the captain directly, they should change it after logging in.");
+        redirect('/admin/captains.php');
     }
 }
 
@@ -58,6 +69,7 @@ $captains = db()->query(
     </p>
     <form method="post" novalidate>
       <?= csrf_field() ?>
+      <input type="hidden" name="action" value="create_captain">
       <label for="name">Full name</label>
       <input type="text" id="name" name="name" required>
 
@@ -77,7 +89,7 @@ $captains = db()->query(
   <div class="card">
     <h2 style="font-size:1.1rem;">Captains</h2>
     <table>
-      <tr><th>Name</th><th>Email</th><th>Phone</th><th>Last Login</th><th>Status</th></tr>
+      <tr><th>Name</th><th>Email</th><th>Phone</th><th>Last Login</th><th>Status</th><th></th></tr>
       <?php foreach ($captains as $c): ?>
       <tr>
         <td><?= e($c['name']) ?></td>
@@ -85,10 +97,18 @@ $captains = db()->query(
         <td><?= e($c['phone']) ?></td>
         <td><?= $c['last_login_at'] ? e(utc_to_local($c['last_login_at'], 'M j, g:i A')) : '— never —' ?></td>
         <td><?= $c['is_active'] ? 'Active' : 'Disabled' ?></td>
+        <td>
+          <form method="post" onsubmit="return confirm('Reset this captain\'s password? A new temporary one will be generated.');" style="margin:0;">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="reset_password">
+            <input type="hidden" name="captain_id" value="<?= (int)$c['id'] ?>">
+            <button type="submit" class="btn" style="background:var(--foam-dim); font-size:0.7rem; padding:6px 10px;">Reset Password</button>
+          </form>
+        </td>
       </tr>
       <?php endforeach; ?>
       <?php if (!$captains): ?>
-      <tr><td colspan="5" style="color:var(--scale);">No captains added yet.</td></tr>
+      <tr><td colspan="6" style="color:var(--scale);">No captains added yet.</td></tr>
       <?php endif; ?>
     </table>
   </div>

@@ -238,7 +238,10 @@ function handle_audio_upload(string $fieldName, string $subfolder): ?string
     $mime = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
 
-    $allowed = ['audio/webm' => 'webm', 'audio/ogg' => 'ogg', 'audio/mpeg' => 'mp3'];
+    $allowed = [
+        'audio/webm' => 'webm', 'audio/ogg' => 'ogg', 'audio/mpeg' => 'mp3',
+        'audio/mp4' => 'm4a', 'audio/aac' => 'aac', 'audio/x-m4a' => 'm4a',
+    ];
     if (!isset($allowed[$mime])) {
         throw new RuntimeException('That doesn\'t look like a valid voice note.');
     }
@@ -266,7 +269,7 @@ function delete_uploaded_image(?string $webPath): void
     }
     $f = substr($webPath, strlen('/media.php?f='));
     // Same allowlist as media.php — never trust a stored path blindly before unlinking.
-    if (!preg_match('#^(species|boats|catch|gallery|chat-audio)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3)$#', $f)) {
+    if (!preg_match('#^(species|boats|catch|gallery|chat-audio)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3|m4a|aac)$#', $f)) {
         return;
     }
     $fullPath = UPLOADS_STORAGE_DIR . '/' . $f;

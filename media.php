@@ -12,7 +12,7 @@ $f = $_GET['f'] ?? '';
 
 // Strict allowlist: subfolder must be one of ours, filename must match
 // exactly what the upload handlers generate (24 hex chars + a known extension).
-if (!preg_match('#^(species|boats|catch|gallery|chat-audio)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3)$#', $f, $m)) {
+if (!preg_match('#^(species|boats|catch|gallery|chat-audio)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3|m4a|aac)$#', $f, $m)) {
     http_response_code(404);
     exit;
 }
@@ -30,7 +30,7 @@ $ext = $m[2];
 // webm is shared between video (gallery) and audio (chat-audio) uploads —
 // same extension, different real content type depending on which folder it's in.
 if ($subfolder === 'chat-audio') {
-    $contentTypes = ['webm' => 'audio/webm', 'ogg' => 'audio/ogg', 'mp3' => 'audio/mpeg'];
+    $contentTypes = ['webm' => 'audio/webm', 'ogg' => 'audio/ogg', 'mp3' => 'audio/mpeg', 'm4a' => 'audio/mp4', 'aac' => 'audio/aac'];
 } else {
     $contentTypes = ['jpg' => 'image/jpeg', 'mp4' => 'video/mp4', 'mov' => 'video/quicktime', 'webm' => 'video/webm'];
 }

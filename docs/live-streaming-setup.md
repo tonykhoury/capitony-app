@@ -147,3 +147,10 @@ stream key.
 - Renew HTTPS: certbot sets up auto-renewal by default — nothing to do
 - If the stream ever looks broken: `docker logs capitony-stream` on the
   VPS is the first place to check
+- **Old video segments are cleaned up automatically.** nginx-rtmp writes
+  a `.ts` file to `/opt/rtmp/hls/` every few seconds while streaming and
+  never deletes them on its own — left unchecked, disk usage grows every
+  time a trip goes live. A cron job (`/opt/rtmp/cleanup.sh`, scheduled
+  daily at 3 AM) deletes anything older than 7 days and tidies up empty
+  stream folders. Check `/opt/rtmp/cleanup.log` to confirm it's actually
+  running, and `df -h` periodically to keep an eye on disk space.

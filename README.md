@@ -101,9 +101,11 @@ most Hostinger plans don't include SSH by default:
   `docs/live-streaming-setup.md`); homepage plays it back live via
   hls.js, with a "starting soon" retry state and automatic fallback for
   Safari's native HLS support
-- **WhatsApp catch alerts**: visitors set an alert at `/alerts.php` (any
-  species or a specific one, optional minimum weight). The moment a
-  captain posts a matching catch, `trigger_catch_alerts()` sends a
+- **WhatsApp catch alerts**: visitors set an alert at `/alerts.php` —
+  any number of species (checkboxes, none selected = any species, via
+  the `catch_alert_species` junction table), and a weight condition of
+  "any," "at least X kg," or "between X and Y kg" (`min_weight_kg` /
+  `max_weight_kg`, either or both nullable). The moment a captain posts a matching catch, `trigger_catch_alerts()` sends a
   WhatsApp message via Twilio — non-blocking, so a Twilio failure never
   breaks catch posting. Uses the `notifications_order_update_template`
   Quick Reply template (Content Template Builder → find the Quick Reply

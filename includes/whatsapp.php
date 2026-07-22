@@ -75,12 +75,16 @@ function trigger_catch_alerts(int $catchItemId, int $speciesId, float $weightKg,
 {
     try {
         $stmt = db()->prepare(
-            "SELECT * FROM catch_alerts
-             WHERE is_active = 1
-               AND (species_id IS NULL OR species_id = ?)
-               AND (min_weight_kg IS NULL OR min_weight_kg <= ?)"
+            "SELECT * FROM catch_alerts ca
+             WHERE ca.is_active = 1
+               AND (
+                     NOT EXISTS (SELECT 1 FROM catch_alert_species x WHERE x.alert_id = ca.id)
+                     OR EXISTS (SELECT 1 FROM catch_alert_species x WHERE x.alert_id = ca.id AND x.species_id = ?)
+                   )
+               AND (ca.min_weight_kg IS NULL OR ? >= ca.min_weight_kg)
+               AND (ca.max_weight_kg IS NULL OR ? <= ca.max_weight_kg)"
         );
-        $stmt->execute([$speciesId, $weightKg]);
+        $stmt->execute([$speciesId, $weightKg, $weightKg]);
         $alerts = $stmt->fetchAll();
 
         foreach ($alerts as $alert) {

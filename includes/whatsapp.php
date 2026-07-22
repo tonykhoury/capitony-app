@@ -2,11 +2,17 @@
 /**
  * Sends a WhatsApp message via Twilio's REST API directly (no SDK —
  * avoids a composer dependency that may not install cleanly on shared
- * hosting). Uses the sandbox's pre-approved "Order Notifications"
- * template, since sandbox mode can't send freeform business-initiated
- * messages — only Twilio's built-in templates. Once a real WhatsApp
- * sender + custom template are approved, swap TWILIO_WHATSAPP_TEMPLATE_SID
- * to that template's Content SID and adjust the variable mapping below.
+ * hosting). Uses the "notifications_order_update_template" Quick Reply
+ * template (Content SID in TWILIO_WHATSAPP_TEMPLATE_SID) — sandbox mode
+ * can't send freeform business-initiated messages, only pre-existing
+ * templates, and this is the closest fit available without needing a
+ * media URL. Its fixed body is:
+ *   "Thank you for your order. Your delivery is scheduled for {{date}}
+ *    at {{time}}. If you need to change it, please reply back and let
+ *    us know."
+ * — clunky for a catch alert, but functional. Swap in a
+ * purpose-written custom template once a real WhatsApp sender is
+ * approved post-launch (see the README backlog note).
  *
  * Returns ['success' => bool, 'message_sid' => ?string, 'error' => ?string]
  */
@@ -14,15 +20,12 @@ function send_whatsapp_catch_alert(string $toPhone, string $speciesName, string 
 {
     $url = 'https://api.twilio.com/2010-04-01/Accounts/' . TWILIO_ACCOUNT_SID . '/Messages.json';
 
-    // Mapping our catch details onto the sandbox's fixed "Order Notifications"
-    // template: "Your {{1}} order of {{2}} has shipped and should be
-    // delivered on {{3}}. Details: {{4}}" — not a natural fit, but it's
-    // the closest pre-approved template available before a custom one exists.
+    // Stretching this order-delivery template to fit a catch alert:
+    // {{date}} carries the "what" (species/weight/SKU), {{time}} carries
+    // the "where" (a link back to the shop).
     $contentVariables = json_encode([
-        '1' => 'Capitony',
-        '2' => "{$speciesName} ({$weightKg}kg)",
-        '3' => 'today',
-        '4' => "SKU {$sku} — shop.capitony.live",
+        'date' => "{$speciesName} ({$weightKg}kg) — SKU {$sku}",
+        'time' => 'shop.capitony.live',
     ]);
 
     $postFields = http_build_query([

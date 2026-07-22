@@ -29,9 +29,10 @@ define('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886'); // Twilio's shared sand
 // on the alert signup page so they know how to opt in during sandbox testing.
 define('TWILIO_WHATSAPP_JOIN_CODE', 'CHANGE_ME');
 
-// Console → Messaging → Content Template Builder → find the sandbox's
-// auto-created "Order Notifications" template → copy its Content SID
-// (starts with "HX...").
+// Console → Messaging → Content Template Builder → find
+// "notifications_order_update_template" (the Quick Reply variant, not
+// the Media one — no image required) → copy its Content SID (starts
+// with "HX...").
 define('TWILIO_WHATSAPP_TEMPLATE_SID', 'CHANGE_ME');
 
 // --- Uploaded file storage (species/boat/catch photos) -----------------

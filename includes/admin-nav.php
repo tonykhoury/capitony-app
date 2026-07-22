@@ -4,6 +4,7 @@
     <a href="/admin/dashboard.php">Dashboard</a>
     <a href="/admin/trips.php">Trips & Schedule</a>
     <a href="/admin/trip-requests.php">Trip Requests</a>
+    <a href="/admin/customers.php">Customers</a>
     <a href="/admin/species.php">Species & Pricing</a>
     <a href="/admin/boats.php">Boats</a>
     <a href="/admin/settings.php">Service Pricing</a>

@@ -10,6 +10,7 @@ if (is_post()) {
     csrf_verify();
     $name = trim($_POST['visitor_name'] ?? '');
     $phone = normalize_phone($_POST['visitor_phone'] ?? '');
+    $email = trim($_POST['visitor_email'] ?? '');
     $speciesIds = array_map('intval', $_POST['species_ids'] ?? []);
     $weightMode = $_POST['weight_mode'] ?? 'any';
     $atleastInput = trim($_POST['atleast_min_weight_kg'] ?? '');
@@ -21,6 +22,8 @@ if (is_post()) {
 
     if ($name === '' || $phone === '') {
         $error = 'Name and phone number are required.';
+    } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'That email address doesn\'t look right — leave it blank if you\'d rather not share it.';
     } elseif ($weightMode === 'atleast') {
         if ($atleastInput === '') {
             $error = 'Enter a minimum weight, or switch to "Any weight".';
@@ -42,8 +45,8 @@ if (is_post()) {
         $token = bin2hex(random_bytes(16));
         $pdo = db();
         $pdo->prepare(
-            'INSERT INTO catch_alerts (visitor_name, visitor_phone, min_weight_kg, max_weight_kg, unsubscribe_token) VALUES (?, ?, ?, ?, ?)'
-        )->execute([$name, $phone, $minWeight, $maxWeight, $token]);
+            'INSERT INTO catch_alerts (visitor_name, visitor_phone, visitor_email, min_weight_kg, max_weight_kg, unsubscribe_token) VALUES (?, ?, ?, ?, ?, ?)'
+        )->execute([$name, $phone, $email ?: null, $minWeight, $maxWeight, $token]);
         $alertId = (int)$pdo->lastInsertId();
 
         foreach ($speciesIds as $sid) {
@@ -93,6 +96,9 @@ require __DIR__ . '/includes/public-header.php';
 
           <label for="visitor_phone">WhatsApp number</label>
           <input type="tel" id="visitor_phone" name="visitor_phone" required placeholder="+971...">
+
+          <label for="visitor_email">Email (optional — occasional updates and offers, no spam)</label>
+          <input type="email" id="visitor_email" name="visitor_email" placeholder="you@example.com">
 
           <label>Species (leave all unchecked for any fish)</label>
           <div class="service-chip-group" style="margin-bottom:18px;">

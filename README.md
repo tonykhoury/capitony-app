@@ -250,6 +250,14 @@ most Hostinger plans don't include SSH by default:
      probably deserves its own planning pass rather than being bundled
      in with the address/email changes.
 - **Password change / forgot password** for staff accounts.
+- **CSV export (PARKED)** — admin pages that list data (Customers, Trip
+  Requests, and eventually Orders once that view exists) currently
+  browse-only, no download. Straightforward to add: a plain PHP endpoint
+  per page that sets `Content-Type: text/csv` headers and streams the
+  same query already used for the on-screen table — no new dependency
+  needed. Customers is the most immediately useful one, since it's what
+  unlocks actually using the subscriber list in an external email/WhatsApp
+  broadcast tool.
 - **Admin order management view** — orders are created correctly by
   checkout, but there's no admin page yet to see/confirm/fulfill them.
 

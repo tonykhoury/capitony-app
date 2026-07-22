@@ -20,6 +20,8 @@ $hlsUrl = STREAM_HLS_BASE_URL . $liveSession['stream_key'] . '.m3u8';
     <div class="live-player-status" id="liveStatusMsg">Connecting to the boat…</div>
   </div>
   <p class="live-player-caption">Streaming from <?= e($liveSession['boat_name'] ?? 'the boat') ?> · Dubai Marina</p>
+
+  <?php $chatLiveSessionId = $liveSession['live_session_id']; $chatIsCaptain = false; require __DIR__ . '/chat-widget.php'; ?>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>

@@ -13,6 +13,10 @@ if (!$trip) {
     redirect('/captain/dashboard.php');
 }
 
+$activeLiveSession = db()->prepare("SELECT id FROM live_sessions WHERE trip_id = ? AND status = 'live'");
+$activeLiveSession->execute([$tripId]);
+$activeLiveSession = $activeLiveSession->fetch();
+
 $error = null;
 
 if (is_post()) {
@@ -89,6 +93,14 @@ $catchItems = $catchItems->fetchAll();
 
 <div class="wrap">
   <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>
+
+  <?php if ($activeLiveSession): ?>
+  <div class="card">
+    <h2 style="font-size:1.1rem;">Live Chat</h2>
+    <p style="color:var(--scale); font-size:0.85rem; margin-top:-8px;">Messages from viewers watching the live stream. Reply here — they'll see it on the site.</p>
+    <?php $chatLiveSessionId = (int)$activeLiveSession['id']; $chatIsCaptain = true; require __DIR__ . '/../includes/chat-widget.php'; ?>
+  </div>
+  <?php endif; ?>
   <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
   <p style="margin-bottom:20px;"><a href="/captain/dashboard.php" style="color:var(--sky); font-family:var(--mono); font-size:0.82rem;">&larr; Back to My Trips</a></p>

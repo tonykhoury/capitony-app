@@ -42,6 +42,19 @@ anything from them.
 - **Root directory**: `public_html` (the default)
 - **Branch**: `main`
 
+- **Live session chat (visitor ↔ captain, text and voice)**: shown on
+  the homepage live player for visitors, and on the captain's
+  catch-posting page whenever a live session is active. Polling-based
+  (checks for new messages every 4 seconds — no websocket/SSE server
+  needed for this message volume). Voice notes recorded in-browser via
+  the `MediaRecorder` API, uploaded through the same safe-storage
+  pattern as photos/videos (outside `public_html`, served via
+  `media.php`). Visitor identity (name) is remembered via a cookie, no
+  account needed; captain identity comes from their login session, never
+  a client-supplied field. `chat-send.php` skips CSRF checking
+  deliberately — it's called from a logged-out page via `fetch()`, and
+  a same-origin chat message has low enough stakes that the UX cost of
+  a token roundtrip isn't worth it; revisit if spam becomes a real issue.
 - **Photo album**: admin uploads/removes photos and videos (`/admin/gallery.php`),
   shown publicly at `/album.php`. Photos are re-encoded via GD like every
   other upload; videos are validated by real MIME type (not just file
@@ -147,17 +160,6 @@ most Hostinger plans don't include SSH by default:
 
 ## What's stubbed, not fully built yet
 
-- **Live session chat (PARKED — visitor ↔ captain, text or voice)**:
-  schema exists (`chat_messages`, with `message_type` for text vs. voice
-  and `audio_path` for voice notes), no UI yet. Design notes for when
-  this gets built: visitors post from the live-player page using their
-  name + phone (same no-account pattern as ordering); voice notes need
-  browser mic capture (`MediaRecorder` API) uploaded as short audio
-  clips through the same safe-storage pattern as photos/videos; the
-  captain needs a simple reply UI on their dashboard while a trip is
-  live, most likely polling for new messages (a proper websocket/SSE
-  setup is more work and not necessary for a low-message-volume feature
-  like this).
 - **Social media auto-publish (PARKED — Instagram + Facebook)**: every
   photo/video uploaded to the site also gets published to Instagram and
   Facebook automatically. Design notes:

@@ -21,3 +21,4 @@ require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/cart.php';
 require_once __DIR__ . '/whatsapp.php';
+require_once __DIR__ . '/chat.php';

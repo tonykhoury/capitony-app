@@ -213,6 +213,51 @@ function handle_video_upload(string $fieldName, string $subfolder): ?string
     return '/media.php?f=' . $subfolder . '/' . $filename;
 }
 
+/**
+ * Handles a single uploaded voice note (from the browser's MediaRecorder
+ * API, always audio/webm in practice). Same safe-storage pattern as
+ * images/videos — outside public_html, served via media.php.
+ */
+function handle_audio_upload(string $fieldName, string $subfolder): ?string
+{
+    if (empty($_FILES[$fieldName]['name']) || $_FILES[$fieldName]['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    $file = $_FILES[$fieldName];
+
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Voice note upload failed. Please try again.');
+    }
+
+    if ($file['size'] > 10 * 1024 * 1024) {
+        throw new RuntimeException('Voice note is too long — please keep it under 10MB.');
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    $allowed = ['audio/webm' => 'webm', 'audio/ogg' => 'ogg', 'audio/mpeg' => 'mp3'];
+    if (!isset($allowed[$mime])) {
+        throw new RuntimeException('That doesn\'t look like a valid voice note.');
+    }
+
+    $uploadDir = UPLOADS_STORAGE_DIR . '/' . $subfolder;
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $filename = bin2hex(random_bytes(12)) . '.' . $allowed[$mime];
+    $destPath = $uploadDir . '/' . $filename;
+
+    if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+        throw new RuntimeException('Could not save that voice note. Please try again.');
+    }
+
+    return '/media.php?f=' . $subfolder . '/' . $filename;
+}
+
 /** Deletes a previously uploaded image/video file given its stored web path, if set. */
 function delete_uploaded_image(?string $webPath): void
 {
@@ -221,7 +266,7 @@ function delete_uploaded_image(?string $webPath): void
     }
     $f = substr($webPath, strlen('/media.php?f='));
     // Same allowlist as media.php — never trust a stored path blindly before unlinking.
-    if (!preg_match('#^(species|boats|catch|gallery)/[a-f0-9]{24}\.(jpg|mp4|mov|webm)$#', $f)) {
+    if (!preg_match('#^(species|boats|catch|gallery|chat-audio)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3)$#', $f)) {
         return;
     }
     $fullPath = UPLOADS_STORAGE_DIR . '/' . $f;

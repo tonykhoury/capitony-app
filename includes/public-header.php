@@ -28,6 +28,11 @@ $activeNav = $activeNav ?? '';
       <a href="/album.php" class="<?= $activeNav === 'album' ? 'active' : '' ?>">Photo Album</a>
       <a href="/about.php" class="<?= $activeNav === 'about' ? 'active' : '' ?>">Who We Are</a>
       <a href="/contact.php" class="<?= $activeNav === 'contact' ? 'active' : '' ?>">Contact</a>
+      <?php if ($c = current_customer()): ?>
+        <a href="/account/dashboard.php" class="<?= $activeNav === 'account' ? 'active' : '' ?>">Hi, <?= e(explode(' ', $c['name'])[0]) ?></a>
+      <?php else: ?>
+        <a href="/account/login.php" class="<?= $activeNav === 'account' ? 'active' : '' ?>">Log In</a>
+      <?php endif; ?>
       <a href="/cart.php" class="cart-link">Cart<?php if (cart_count() > 0): ?><span class="cart-count"><?= cart_count() ?></span><?php endif; ?></a>
     </nav>
   </div>

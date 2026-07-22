@@ -55,6 +55,30 @@ anything from them.
   deliberately — it's called from a logged-out page via `fetch()`, and
   a same-origin chat message has low enough stakes that the UX cost of
   a token roundtrip isn't worth it; revisit if spam becomes a real issue.
+- **Admin order management**: `/admin/orders.php` (list, filterable by
+  status) and `/admin/order-detail.php` (line items, status updates —
+  pending/confirmed/fulfilled/cancelled, kept in sync between
+  `order_groups` and its `orders` line items).
+- **Admin metrics dashboard**: `/admin/metrics.php` — revenue by day
+  (last 30 days, grouped in Dubai local time so a late-night order
+  doesn't land on the wrong calendar day), best-selling species,
+  sell-through rate by trip (posted vs. sold weight), captain activity.
+- **CSV export**: Customers, Trip Requests, and Orders each have an
+  "Export CSV" button on their admin page, streaming the same query
+  already used for the on-screen table.
+- **Staff password management**: self-service change for both admin
+  and captain (`/admin/change-password.php`, `/captain/change-password.php`),
+  plus admin-assisted reset for a locked-out captain from `/admin/captains.php`.
+- **UAE-standard checkout address + mandatory email**: Emirate, City,
+  Neighborhood, Street, Building, Apartment/Villa, optional Landmark and
+  Makani number — collected only when at least one cart item is set to
+  deliver. Email is required on every order regardless of delivery method.
+- **Visitor accounts (optional — guest checkout still fully works)**:
+  register/login at `/account/`, with an order history dashboard. At
+  checkout, a logged-in customer's details are pre-filled and their
+  order is linked via `customer_id`; a guest can optionally check
+  "create an account" to register using the same details they just
+  typed, without it ever blocking guest checkout if they skip it.
 - **Photo album**: admin uploads/removes photos and videos (`/admin/gallery.php`),
   shown publicly at `/album.php`. Photos are re-encoded via GD like every
   other upload; videos are validated by real MIME type (not just file
@@ -216,52 +240,14 @@ most Hostinger plans don't include SSH by default:
     best-effort follow-up step (or a small retry queue) rather than part
     of the checkout transaction itself.
 
-- **Admin operations dashboard (PARKED — metrics overview)**: the admin
-  dashboard currently just lists upcoming trips. A real metrics view
-  would pull from data that already exists: revenue by day/week from
-  `orders`/`order_groups`, best-selling species from `catch_items`,
-  sell-through rate (posted vs. sold weight) per trip, and captain
-  activity (trips run, catches posted). No new schema needed — this is
-  purely new admin-side query/UI work whenever it's prioritized.
-- **Checkout enhancements (PARKED — three related changes)**:
-  1. **UAE-standard address structure**: replace the single free-text
-     `delivery_address` field with structured fields matching how UAE
-     addresses actually work — Emirate (dropdown: Abu Dhabi, Dubai,
-     Sharjah, Ajman, Umm Al Quwain, Ras Al Khaimah, Fujairah), City/Area,
-     Neighborhood, Street, Building name/number, Apartment or Villa
-     number, and a Landmark field (very commonly used here since formal
-     addressing is inconsistent). Worth also considering a **Makani
-     number** field — UAE's official geo-addressing system, which many
-     delivery services rely on for precise location. This needs new
-     columns on `order_groups` (and probably `orders`, since that's
-     where `delivery_address` currently lives per-line) — a straight
-     schema migration, not a big structural change.
-  2. **Make email mandatory at checkout**: currently only name + phone
-     are collected. Needs a new `email` column on `order_groups` (doesn't
-     exist yet) plus making it `required` in the checkout form.
-  3. **Visitor accounts for returning customers**: bigger change — the
-     app is currently deliberately account-free for visitors (session
-     cart, guest checkout only). Real accounts need: a new `customers`
-     table (kept separate from `users`, since customers are a different
-     concept from staff/admin/captain — different auth flow, no role
-     overlap), registration + login + password reset pages, an optional
-     "create an account" checkbox at checkout (standard e-commerce
-     pattern — account creation shouldn't block guest checkout), and
-     linking `order_groups` to a `customer_id` when signed in so order
-     history becomes possible. This is the largest of the three and
-     probably deserves its own planning pass rather than being bundled
-     in with the address/email changes.
-- **Password change / forgot password** for staff accounts.
-- **CSV export (PARKED)** — admin pages that list data (Customers, Trip
-  Requests, and eventually Orders once that view exists) currently
-  browse-only, no download. Straightforward to add: a plain PHP endpoint
-  per page that sets `Content-Type: text/csv` headers and streams the
-  same query already used for the on-screen table — no new dependency
-  needed. Customers is the most immediately useful one, since it's what
-  unlocks actually using the subscriber list in an external email/WhatsApp
-  broadcast tool.
-- **Admin order management view** — orders are created correctly by
-  checkout, but there's no admin page yet to see/confirm/fulfill them.
+- **Forgot-password for visitor accounts**: staff (admin/captain) get
+  admin-assisted resets since there's already a human on the other end.
+  Customers don't have that — a real "forgot password" flow needs email
+  sending (a reset-token link), which means setting up SMTP or a
+  transactional email service (Postmark, SES, etc.) — nothing in the app
+  sends email at all yet. Worth bundling with any future email-based
+  feature (order confirmation emails, etc.) rather than building the
+  mail infrastructure just for this one flow.
 
 ## Security notes worth knowing
 

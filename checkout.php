@@ -14,6 +14,14 @@ foreach ($lines as $line) {
     }
 }
 
+$loggedInCustomer = current_customer();
+$customerProfile = null;
+if ($loggedInCustomer) {
+    $stmt = db()->prepare('SELECT name, email, phone FROM customers WHERE id = ?');
+    $stmt->execute([$loggedInCustomer['id']]);
+    $customerProfile = $stmt->fetch();
+}
+
 $error = null;
 $confirmedGroupId = null;
 
@@ -31,6 +39,10 @@ if (is_post()) {
     $apartmentVilla = trim($_POST['apartment_villa'] ?? '');
     $landmark = trim($_POST['landmark'] ?? '');
     $makani = trim($_POST['makani_number'] ?? '');
+
+    $createAccount = !$loggedInCustomer && isset($_POST['create_account']);
+    $newAccountPassword = $_POST['new_account_password'] ?? '';
+    $customerIdForOrder = $loggedInCustomer['id'] ?? null;
 
     // Human-readable single-line version, built from the structured fields —
     // kept for display anywhere that just wants one address string (order
@@ -50,7 +62,20 @@ if (is_post()) {
         $error = 'Please enter a valid email address.';
     } elseif ($needsAddress && ($emirate === '' || $city === '' || $street === '' || $building === '' || $apartmentVilla === '')) {
         $error = 'Please fill in Emirate, City, Street, Building, and Apartment/Villa — at least one item in your cart is set for delivery.';
+    } elseif ($createAccount && strlen($newAccountPassword) < 8) {
+        $error = 'Choose a password of at least 8 characters, or uncheck "Create an account" to check out as a guest.';
     } else {
+        if ($createAccount) {
+            $regResult = register_customer($name, $email, $phone, $newAccountPassword);
+            if ($regResult !== true) {
+                $error = $regResult . ' Uncheck "Create an account" to check out as a guest instead.';
+            } else {
+                $customerIdForOrder = current_customer()['id'];
+            }
+        }
+    }
+
+    if (!$error) {
         $pdo = db();
         try {
             $pdo->beginTransaction();
@@ -102,13 +127,13 @@ if (is_post()) {
             }
 
             $groupStmt = $pdo->prepare(
-                'INSERT INTO order_groups (visitor_name, visitor_phone, email, delivery_address,
+                'INSERT INTO order_groups (customer_id, visitor_name, visitor_phone, email, delivery_address,
                     emirate, city, neighborhood, street, building, apartment_villa, landmark, makani_number,
                     delivery_fee_aed, total_price_aed)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $groupStmt->execute([
-                $name, $phone, $email, $anyDelivery ? $formattedAddress : null,
+                $customerIdForOrder, $name, $phone, $email, $anyDelivery ? $formattedAddress : null,
                 $anyDelivery ? $emirate : null, $anyDelivery ? $city : null,
                 $anyDelivery ? ($neighborhood ?: null) : null, $anyDelivery ? $street : null,
                 $anyDelivery ? $building : null, $anyDelivery ? $apartmentVilla : null,
@@ -205,19 +230,24 @@ require __DIR__ . '/includes/public-header.php';
 
     <div class="card">
       <h2 style="font-size:1.05rem;">Your Details</h2>
+      <?php if ($loggedInCustomer): ?>
+        <p style="color:var(--mist); font-size:0.85rem; margin-top:-8px;">Logged in as <?= e($customerProfile['name']) ?> — <a href="/account/logout.php" style="color:var(--sun-deep);">not you?</a></p>
+      <?php else: ?>
+        <p style="color:var(--mist); font-size:0.85rem; margin-top:-8px;">Already have an account? <a href="/account/login.php?redirect=/checkout.php" style="color:var(--sun-deep);">Log in</a> to skip re-typing this.</p>
+      <?php endif; ?>
       <form method="post" novalidate>
         <?= csrf_field() ?>
         <label for="visitor_name">Full name</label>
-        <input type="text" id="visitor_name" name="visitor_name" required value="<?= e($_POST['visitor_name'] ?? '') ?>">
+        <input type="text" id="visitor_name" name="visitor_name" required value="<?= e($_POST['visitor_name'] ?? $customerProfile['name'] ?? '') ?>">
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 18px;">
           <div>
             <label for="visitor_phone">Phone (WhatsApp preferred)</label>
-            <input type="tel" id="visitor_phone" name="visitor_phone" required placeholder="+971..." value="<?= e($_POST['visitor_phone'] ?? '') ?>">
+            <input type="tel" id="visitor_phone" name="visitor_phone" required placeholder="+971..." value="<?= e($_POST['visitor_phone'] ?? $customerProfile['phone'] ?? '') ?>">
           </div>
           <div>
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" required value="<?= e($_POST['email'] ?? '') ?>">
+            <input type="email" id="email" name="email" required value="<?= e($_POST['email'] ?? $customerProfile['email'] ?? '') ?>">
           </div>
         </div>
 
@@ -261,6 +291,16 @@ require __DIR__ . '/includes/public-header.php';
             <label for="makani_number">Makani number (optional)</label>
             <input type="text" id="makani_number" name="makani_number" value="<?= e($_POST['makani_number'] ?? '') ?>">
           </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!$loggedInCustomer): ?>
+        <div class="service-chip-group" style="margin-top:16px;">
+          <label><input type="checkbox" id="createAccountCheck" name="create_account" onclick="document.getElementById('newAccountPasswordField').style.display = this.checked ? 'block' : 'none';"> Create an account with these details, for faster checkout next time</label>
+        </div>
+        <div id="newAccountPasswordField" style="display:none;">
+          <label for="new_account_password">Choose a password (min. 8 characters)</label>
+          <input type="password" id="new_account_password" name="new_account_password" minlength="8">
         </div>
         <?php endif; ?>
 

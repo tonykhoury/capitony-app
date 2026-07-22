@@ -26,14 +26,16 @@ if (is_post()) {
         // docs/live-streaming-setup.md) — this generates the stream_key
         // the captain enters into their broadcasting app (e.g. Larix).
         //
-        // Safety: end any other live_sessions rows for this trip first.
-        // Without this, clicking "Go Live" twice (e.g. after reconnecting
-        // a dropped stream) could leave two rows marked 'live' at once,
-        // and the site would have no reliable way to know which stream
-        // key is the one actually being broadcast right now.
+        // Safety: end any other live_sessions rows first — across ALL
+        // trips, not just this one. There's only one boat, so only one
+        // trip is ever really live at a time; scoping this to just the
+        // current trip previously let two different trips both end up
+        // marked 'live' simultaneously, and the homepage's "most recent"
+        // query would pick whichever was newer even if it wasn't the one
+        // actually streaming.
         db()->prepare(
-            "UPDATE live_sessions SET status = 'ended', ended_at = NOW() WHERE trip_id = ? AND status = 'live'"
-        )->execute([$tripId]);
+            "UPDATE live_sessions SET status = 'ended', ended_at = NOW() WHERE status = 'live'"
+        )->execute();
 
         $streamKey = bin2hex(random_bytes(16));
         db()->prepare(

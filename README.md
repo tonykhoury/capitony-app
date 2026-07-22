@@ -184,6 +184,36 @@ most Hostinger plans don't include SSH by default:
 
 ## What's stubbed, not fully built yet
 
+- **WhatsApp-native live chat (PARKED)**: let visitors chat with the
+  boat directly via WhatsApp instead of (or alongside) the web widget on
+  `/shop.php`. Confirmed feasible via Twilio's actual docs — design notes:
+  - Twilio Sandbox supports a "When a Message Comes In" webhook,
+    configured in Sandbox settings, pointing at a URL on our server.
+    Every inbound WhatsApp message to the sandbox number POSTs there
+    with sender phone, WhatsApp profile name (free name capture — nicer
+    than asking visitors to type one), message text, and a media URL to
+    download for voice notes.
+  - Single shared sandbox number = no way to know which live session a
+    message is about. Simplest approach: attribute every inbound message
+    to whichever `live_sessions` row is currently `status = 'live'` —
+    valid *only* because there's one boat and the app already enforces
+    just one session live at a time (see the fix in `captain/dashboard.php`'s
+    `go_live` handler). Revisit if that assumption ever changes.
+  - Only one webhook URL per number — if this gets built, it needs to be
+    a general inbound router from day one (any future two-way traffic on
+    this number, like replies to catch alerts, lands in the same place).
+  - One genuine simplification vs. catch alerts: WhatsApp doesn't require
+    a pre-approved template for *replies within 24 hours of the customer
+    messaging first* — only for business-*initiated* contact. Since chat
+    is inherently visitor-initiated, the captain's replies could go out
+    as plain freeform text via Twilio's regular Messages API, no
+    Content SID / template mapping needed like the alerts flow has.
+  - Still needs the sandbox join-code opt-in step, same friction as
+    catch alerts today, until a real WhatsApp Business sender exists.
+  - Open decision for whenever this is picked up: replace the web widget
+    entirely, or run both channels into the same `chat_messages` feed
+    (would need a `channel` column to know where to send captain replies
+    back to — WhatsApp API call vs. just leaving it in the web feed).
 - **Social media auto-publish (PARKED — Instagram + Facebook)**: every
   photo/video uploaded to the site also gets published to Instagram and
   Facebook automatically. Design notes:

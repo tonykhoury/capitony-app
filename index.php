@@ -127,6 +127,12 @@ require __DIR__ . '/includes/public-header.php';
   </div>
 </section>
 
+<div class="live-banner" style="background:var(--gulf);">
+  <a href="/alerts.php" style="color:var(--chalk); display:flex; align-items:center; gap:10px;">
+    🔔 Want to know the second your fish is caught? <strong style="text-decoration:underline;">Set a Catch Alert →</strong>
+  </a>
+</div>
+
 <div class="band">
   <div class="photo" style="background-image:url('/assets/img/crew-sunset-marina.jpg');"></div>
   <div class="text">

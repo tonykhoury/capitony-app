@@ -143,6 +143,33 @@ most Hostinger plans don't include SSH by default:
   live, most likely polling for new messages (a proper websocket/SSE
   setup is more work and not necessary for a low-message-volume feature
   like this).
+- **Social media auto-publish (PARKED — Instagram + Facebook)**: every
+  photo/video uploaded to the site also gets published to Instagram and
+  Facebook automatically. Design notes:
+  - Instagram requires a Business/Creator account linked to a Facebook
+    Page, and publishing is a "container" flow: `POST /{ig-user-id}/media`
+    with a public `image_url`/`video_url` (our `media.php` URLs already
+    satisfy this), poll `GET /{container-id}?fields=status_code` until
+    `FINISHED` for video, then `POST /{ig-user-id}/media_publish`.
+    Facebook Page posting is similar but simpler for photos.
+  - Since this only ever needs to post to **Capitony's own accounts**
+    (not third-party accounts), Meta's full App Review process likely
+    isn't required — a Meta developer app in Development Mode can
+    publish to accounts added as testers/admins on the app itself. Worth
+    confirming this still holds at setup time, but it avoids the
+    multi-week review cycle that a real third-party integration would need.
+  - Needs OAuth setup once (long-lived Page access token + connected IG
+    user ID stored in `config.php`, same pattern as Twilio/Zoho creds).
+  - Open design question: does "every image/video uploaded" mean the
+    curated Photo Album only, or also every individual Catch of the Day
+    photo? The latter could mean multiple posts per trip (one per fish),
+    which may be too frequent for a following — worth deciding before
+    building, not after.
+  - Needs `instagram_post_id` / `facebook_post_id` columns on
+    `gallery_items` for idempotency (never double-post the same upload),
+    and — like Zoho — should be non-blocking: a failed social post should
+    never block the upload itself from succeeding.
+
 - **Zoho Books invoice automation (PARKED)**: auto-generate an invoice in
   Zoho Books for every completed order. Design notes based on how Zoho's
   API actually works:

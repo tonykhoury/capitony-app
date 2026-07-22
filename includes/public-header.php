@@ -24,6 +24,7 @@ $activeNav = $activeNav ?? '';
     <nav id="mainnav">
       <a href="/shop.php" class="<?= $activeNav === 'shop' ? 'active' : '' ?>">Catch of the Day</a>
       <a href="/trips.php" class="<?= $activeNav === 'trips' ? 'active' : '' ?>">Book a Trip</a>
+      <a href="/alerts.php" class="<?= $activeNav === 'alerts' ? 'active' : '' ?>">Catch Alerts</a>
       <a href="/album.php" class="<?= $activeNav === 'album' ? 'active' : '' ?>">Photo Album</a>
       <a href="/about.php" class="<?= $activeNav === 'about' ? 'active' : '' ?>">Who We Are</a>
       <a href="/contact.php" class="<?= $activeNav === 'contact' ? 'active' : '' ?>">Contact</a>

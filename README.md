@@ -101,6 +101,20 @@ most Hostinger plans don't include SSH by default:
   `docs/live-streaming-setup.md`); homepage plays it back live via
   hls.js, with a "starting soon" retry state and automatic fallback for
   Safari's native HLS support
+- **WhatsApp catch alerts**: visitors set an alert at `/alerts.php` (any
+  species or a specific one, optional minimum weight). The moment a
+  captain posts a matching catch, `trigger_catch_alerts()` sends a
+  WhatsApp message via Twilio — non-blocking, so a Twilio failure never
+  breaks catch posting. **Still needs two values from Twilio Console**
+  before it actually sends: `TWILIO_WHATSAPP_JOIN_CODE` (Messaging → Try
+  it out → WhatsApp) and `TWILIO_WHATSAPP_TEMPLATE_SID` (Messaging →
+  Content Template Builder → the sandbox's auto-created "Order
+  Notifications" template — copy its Content SID, starts with `HX`).
+  Sandbox mode requires every subscriber to text the join code once
+  before they can receive anything — the signup page explains this.
+  Move to a real WhatsApp Business sender + a custom-approved template
+  before real launch; the sandbox template mapping (`ContentVariables`
+  in `includes/whatsapp.php`) is a rough fit, not the real message copy.
 - **Trip booking**: upcoming trips shown on the homepage and a full
   `/trips.php` listing, with a request-to-join form (name, phone, seat
   count). Seats remaining accounts for pending *and* confirmed requests,
@@ -130,8 +144,6 @@ most Hostinger plans don't include SSH by default:
 
 ## What's stubbed, not fully built yet
 
-- **WhatsApp catch alerts**: `catch_alerts` / `alert_notifications` tables
-  exist; the matching + Twilio send logic hasn't been written yet.
 - **Live session chat (PARKED — visitor ↔ captain, text or voice)**:
   schema exists (`chat_messages`, with `message_type` for text vs. voice
   and `audio_path` for voice notes), no UI yet. Design notes for when

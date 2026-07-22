@@ -1,0 +1,85 @@
+<?php
+require __DIR__ . '/includes/bootstrap.php';
+
+$error = null;
+$subscribed = false;
+
+$species = db()->query("SELECT id, name FROM species WHERE is_active = 1 ORDER BY name")->fetchAll();
+
+if (is_post()) {
+    csrf_verify();
+    $name = trim($_POST['visitor_name'] ?? '');
+    $phone = normalize_phone($_POST['visitor_phone'] ?? '');
+    $speciesId = $_POST['species_id'] !== '' ? (int)$_POST['species_id'] : null;
+    $minWeight = trim($_POST['min_weight_kg'] ?? '') !== '' ? (float)$_POST['min_weight_kg'] : null;
+
+    if ($name === '' || $phone === '') {
+        $error = 'Name and phone number are required.';
+    } else {
+        $token = bin2hex(random_bytes(16));
+        db()->prepare(
+            'INSERT INTO catch_alerts (visitor_name, visitor_phone, species_id, min_weight_kg, unsubscribe_token) VALUES (?, ?, ?, ?, ?)'
+        )->execute([$name, $phone, $speciesId, $minWeight, $token]);
+        $subscribed = true;
+    }
+}
+
+$pageTitle = 'Catch Alerts';
+$activeNav = 'alerts';
+require __DIR__ . '/includes/public-header.php';
+?>
+
+<section class="section" style="padding-top:56px;">
+  <div class="wrap" style="max-width:640px;">
+    <div class="section-head">
+      <span class="eyebrow">Catch Alerts</span>
+      <h2>Get notified the moment your fish is caught.</h2>
+      <p>Set what you're after — any fish, or a specific species and minimum weight — and we'll message you on WhatsApp the second it's posted to the board.</p>
+    </div>
+
+    <?php if ($subscribed): ?>
+      <div class="alert alert-success">You're set — we'll message you as soon as a matching catch is posted.</div>
+      <div class="warning-box">
+        <strong>One more step:</strong> since we're still on Twilio's test sandbox, WhatsApp requires you to opt in
+        directly before we're allowed to message you. Open WhatsApp and send the message
+        <strong>"join <?= e(TWILIO_WHATSAPP_JOIN_CODE) ?>"</strong> to <strong>+1 415 523 8886</strong> — takes 10 seconds,
+        and without it our alert won't reach you.
+      </div>
+      <a href="/shop.php" class="btn btn-sun">Back to Catch of the Day</a>
+    <?php else: ?>
+      <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
+
+      <div class="warning-box">
+        We're currently on Twilio's WhatsApp test sandbox. After signing up below, you'll need to send
+        <strong>"join <?= e(TWILIO_WHATSAPP_JOIN_CODE) ?>"</strong> to <strong>+1 415 523 8886</strong> on WhatsApp once —
+        otherwise we're not able to message you.
+      </div>
+
+      <div class="card">
+        <form method="post" novalidate>
+          <?= csrf_field() ?>
+          <label for="visitor_name">Your name</label>
+          <input type="text" id="visitor_name" name="visitor_name" required>
+
+          <label for="visitor_phone">WhatsApp number</label>
+          <input type="tel" id="visitor_phone" name="visitor_phone" required placeholder="+971...">
+
+          <label for="species_id">Species (optional — leave blank for any fish)</label>
+          <select id="species_id" name="species_id">
+            <option value="">Any species</option>
+            <?php foreach ($species as $s): ?>
+              <option value="<?= (int)$s['id'] ?>"><?= e($s['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+
+          <label for="min_weight_kg">Minimum weight in kg (optional)</label>
+          <input type="number" id="min_weight_kg" name="min_weight_kg" step="0.1" min="0" placeholder="e.g. 3">
+
+          <button type="submit" class="btn btn-sun btn-block">Set Alert</button>
+        </form>
+      </div>
+    <?php endif; ?>
+  </div>
+</section>
+
+<?php require __DIR__ . '/includes/public-footer.php'; ?>

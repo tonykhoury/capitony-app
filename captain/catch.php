@@ -45,6 +45,13 @@ if (is_post()) {
                 $sku = 'CAP-' . str_pad((string)$newId, 6, '0', STR_PAD_LEFT);
                 $pdo->prepare('UPDATE catch_items SET sku = ? WHERE id = ?')->execute([$sku, $newId]);
 
+                // Non-blocking: alert failures are logged internally and never
+                // prevent the catch posting itself from succeeding.
+                $speciesNameStmt = $pdo->prepare('SELECT name FROM species WHERE id = ?');
+                $speciesNameStmt->execute([$speciesId]);
+                $speciesNameForAlert = $speciesNameStmt->fetchColumn() ?: 'Fish';
+                trigger_catch_alerts($newId, $speciesId, $weight, $sku, $speciesNameForAlert);
+
                 flash('success', "Posted to the Catch of the Day board. SKU: {$sku}");
                 redirect('/captain/catch.php?trip_id=' . $tripId);
             }

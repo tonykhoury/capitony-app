@@ -22,6 +22,7 @@
     <div>
       <h4>Follow the Boat</h4>
       <a href="https://www.instagram.com/el.capitony/" target="_blank" rel="noopener">Instagram</a><br>
+      <a href="https://www.facebook.com/profile.php?id=61592337241277" target="_blank" rel="noopener">Facebook</a><br>
       <a href="https://wa.me/971563885532" target="_blank" rel="noopener">WhatsApp</a>
     </div>
   </div>

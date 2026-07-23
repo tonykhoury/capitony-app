@@ -4,6 +4,7 @@
     <a href="/admin/dashboard.php">Dashboard</a>
     <a href="/admin/trips.php">Trips & Schedule</a>
     <a href="/admin/trip-requests.php">Trip Requests</a>
+    <a href="/admin/chat-history.php">Chat History</a>
     <a href="/admin/customers.php">Customers</a>
     <a href="/admin/orders.php">Orders</a>
     <a href="/admin/change-password.php">Change Password</a>

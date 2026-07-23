@@ -13,7 +13,7 @@ if (!$trip) {
     redirect('/captain/dashboard.php');
 }
 
-$activeLiveSession = db()->prepare("SELECT id FROM live_sessions WHERE trip_id = ? AND status = 'live'");
+$activeLiveSession = db()->prepare("SELECT id, status FROM live_sessions WHERE trip_id = ? ORDER BY started_at DESC LIMIT 1");
 $activeLiveSession->execute([$tripId]);
 $activeLiveSession = $activeLiveSession->fetch();
 

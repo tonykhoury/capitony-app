@@ -36,11 +36,19 @@ if ($isCaptain) {
     $senderName = $captainUser['name'];
 }
 
-$session = db()->prepare("SELECT id FROM live_sessions WHERE id = ? AND status = 'live'");
+// Chat stays open for the whole trip, not just while streaming is
+// actively running — checking the live_sessions row's own status alone
+// would silently block replies during a "trip still active, streaming
+// paused between bursts" window. Only a completed trip actually closes it.
+$session = db()->prepare(
+    "SELECT ls.id FROM live_sessions ls
+     JOIN trips t ON t.id = ls.trip_id
+     WHERE ls.id = ? AND t.status != 'completed'"
+);
 $session->execute([$liveSessionId]);
 if (!$session->fetch()) {
     http_response_code(400);
-    echo json_encode(['error' => 'This live session has ended.']);
+    echo json_encode(['error' => 'This trip has ended — chat is closed.']);
     exit;
 }
 

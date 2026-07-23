@@ -44,17 +44,31 @@ anything from them.
 
 - **Live session chat (visitor ↔ captain, text and voice)**: shown on
   the homepage live player for visitors, and on the captain's
-  catch-posting page whenever a live session is active. Polling-based
-  (checks for new messages every 4 seconds — no websocket/SSE server
-  needed for this message volume). Voice notes recorded in-browser via
-  the `MediaRecorder` API, uploaded through the same safe-storage
-  pattern as photos/videos (outside `public_html`, served via
-  `media.php`). Visitor identity (name) is remembered via a cookie, no
-  account needed; captain identity comes from their login session, never
-  a client-supplied field. `chat-send.php` skips CSRF checking
-  deliberately — it's called from a logged-out page via `fetch()`, and
-  a same-origin chat message has low enough stakes that the UX cost of
-  a token roundtrip isn't worth it; revisit if spam becomes a real issue.
+  catch-posting page and dedicated `/captain/chat.php`. Persists for the
+  **whole trip**, not just while actively streaming — a captain often
+  starts/stops streaming multiple times during one trip, and the chat
+  conversation shouldn't vanish between bursts. Visibility is based on
+  `trips.status != 'completed'`, not `live_sessions.status`; the video
+  player itself still only shows while a session's `status = 'live'`
+  (shows a "not streaming right now, chat below" placeholder otherwise).
+  Marking the trip complete is what actually resets things for the next
+  trip. Polling-based (checks for new messages every 4 seconds — no
+  websocket/SSE server needed for this message volume). Voice notes
+  recorded in-browser via the `MediaRecorder` API, uploaded through the
+  same safe-storage pattern as photos/videos (outside `public_html`,
+  served via `media.php`) — accepts `video/webm` in addition to
+  `audio/webm` since libmagic frequently misidentifies audio-only WebM
+  recordings that way. Visitor identity (name) is remembered via a
+  cookie, no account needed; captain identity requires BOTH a verified
+  captain session AND the widget explicitly declaring captain context
+  (`as_captain=1`) — checking the session alone let an ambient captain
+  login in one browser tab bleed into the public visitor widget in
+  another. `chat-send.php` skips CSRF checking deliberately — it's
+  called from a logged-out page via `fetch()`, and a same-origin chat
+  message has low enough stakes that the UX cost of a token roundtrip
+  isn't worth it; revisit if spam becomes a real issue. **Nothing is
+  ever deleted** — full permanent history across every session, browsable
+  at `/admin/chat-history.php`.
 - **Admin order management**: `/admin/orders.php` (list, filterable by
   status) and `/admin/order-detail.php` (line items, status updates —
   pending/confirmed/fulfilled/cancelled, kept in sync between

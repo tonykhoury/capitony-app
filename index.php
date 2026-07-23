@@ -39,10 +39,22 @@ require __DIR__ . '/includes/public-header.php';
 
 <section class="hero">
   <div class="hero-bg-rotator">
-    <div class="bg active" style="background-image:url('/assets/img/deck-catch-day.jpg');"></div>
-    <div class="bg" style="background-image:url('/assets/img/angler-cobia-dock.jpg'); background-position:center 20%;"></div>
-    <div class="bg" style="background-image:url('/assets/img/hero-nap-sea.jpg');"></div>
-    <div class="bg" style="background-image:url('/assets/img/captain-grouper-light.jpg');"></div>
+    <div class="hero-slide active">
+      <div class="bg-backdrop" style="background-image:url('/assets/img/deck-catch-day.jpg');"></div>
+      <div class="bg-foreground" style="background-image:url('/assets/img/deck-catch-day.jpg');"></div>
+    </div>
+    <div class="hero-slide">
+      <div class="bg-backdrop" style="background-image:url('/assets/img/angler-cobia-dock.jpg');"></div>
+      <div class="bg-foreground" style="background-image:url('/assets/img/angler-cobia-dock.jpg');"></div>
+    </div>
+    <div class="hero-slide">
+      <div class="bg-backdrop" style="background-image:url('/assets/img/hero-nap-sea.jpg');"></div>
+      <div class="bg-foreground" style="background-image:url('/assets/img/hero-nap-sea.jpg');"></div>
+    </div>
+    <div class="hero-slide">
+      <div class="bg-backdrop" style="background-image:url('/assets/img/captain-grouper-light.jpg');"></div>
+      <div class="bg-foreground" style="background-image:url('/assets/img/captain-grouper-light.jpg');"></div>
+    </div>
   </div>
   <div class="scrim"></div>
   <div class="content wrap">
@@ -174,7 +186,7 @@ require __DIR__ . '/includes/public-header.php';
 
 <script>
 (function () {
-  var slides = document.querySelectorAll('.hero-bg-rotator .bg');
+  var slides = document.querySelectorAll('.hero-bg-rotator .hero-slide');
   if (slides.length < 2) return;
   var current = 0;
   setInterval(function () {

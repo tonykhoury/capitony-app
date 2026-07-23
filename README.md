@@ -246,6 +246,35 @@ most Hostinger plans don't include SSH by default:
 
 ## What's stubbed, not fully built yet
 
+- **Card payment integration (PARKED)**: currently no payment collection
+  anywhere in the app — checkout just places the order. Researched two
+  real options:
+  1. **(Recommended) Leverage Zoho Books' native payment gateways** —
+     Zoho Books has built-in integrations with UAE-native gateways
+     (**Telr**, **PayTabs** — both process AED directly, local support)
+     plus international ones (Stripe, Authorize.Net). Once connected in
+     Zoho Books → Settings → Online Payments, **every invoice
+     automatically gets a "Pay Now" button**, and Zoho auto-reconciles
+     the invoice as paid when the customer pays — no new payment code on
+     our side. Only remaining build: when `sync_order_to_zoho()` creates
+     an invoice, grab its payment link from the API response and send it
+     to the customer via WhatsApp (reuses the existing Twilio
+     integration). Small, contained addition, not a new subsystem.
+  2. **Direct gateway integration into checkout.php** — the traditional
+     e-commerce pattern (customer pays *before* the order is reviewed,
+     via a gateway's hosted checkout embedded at the point of placing
+     the order). Bigger build, and changes the business flow — payment
+     would happen before admin/captain confirmation rather than after,
+     which conflicts with the current confirm-then-invoice model unless
+     that model changes too.
+  - Either way: **card numbers should never touch our own PHP app** —
+    always a gateway-hosted page/redirect, never a custom capture form.
+    That's what keeps this out of full PCI-DSS scope, which is a real
+    and heavy burden for a business this size to take on directly.
+  - Unrelated side-finding, not urgent: UAE is introducing mandatory
+    e-invoicing (PINT AE format via Peppol) starting January 2027, but
+    only for businesses with revenue ≥ AED 50 million — nowhere near
+    relevant at current scale, just worth knowing exists.
 - **WhatsApp-native live chat (PARKED)**: let visitors chat with the
   boat directly via WhatsApp instead of (or alongside) the web widget on
   `/shop.php`. Confirmed feasible via Twilio's actual docs — design notes:

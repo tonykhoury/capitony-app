@@ -241,6 +241,11 @@ function handle_audio_upload(string $fieldName, string $subfolder): ?string
     $allowed = [
         'audio/webm' => 'webm', 'audio/ogg' => 'ogg', 'audio/mpeg' => 'mp3',
         'audio/mp4' => 'm4a', 'audio/aac' => 'aac', 'audio/x-m4a' => 'm4a',
+        // libmagic frequently identifies audio-only WebM recordings as
+        // video/webm — the container format doesn't clearly disambiguate
+        // without deep inspection, and this is the actual real-world
+        // MIME type most browsers' MediaRecorder output gets detected as.
+        'video/webm' => 'webm',
     ];
     if (!isset($allowed[$mime])) {
         throw new RuntimeException('That doesn\'t look like a valid voice note.');

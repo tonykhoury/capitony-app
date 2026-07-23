@@ -112,7 +112,7 @@ $storedName = $chatIsCaptain ? '' : (get_visitor_chat_name() ?? '');
     fd.append('live_session_id', sessionId);
     fd.append('message_type', 'text');
     fd.append('body_text', text);
-    if (!isCaptain) fd.append('sender_name', getSenderName());
+    if (isCaptain) { fd.append('as_captain', '1'); } else { fd.append('sender_name', getSenderName()); }
 
     fetch('/chat-send.php', { method: 'POST', body: fd })
       .then(function(r) { return r.json(); })
@@ -162,7 +162,7 @@ $storedName = $chatIsCaptain ? '' : (get_visitor_chat_name() ?? '');
       fd.append('live_session_id', sessionId);
       fd.append('message_type', 'voice');
       fd.append('audio', blob, 'voice.webm');
-      if (!isCaptain) fd.append('sender_name', getSenderName());
+      if (isCaptain) { fd.append('as_captain', '1'); } else { fd.append('sender_name', getSenderName()); }
 
       fetch('/chat-send.php', { method: 'POST', body: fd })
         .then(function(r) { return r.json(); })

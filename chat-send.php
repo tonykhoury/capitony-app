@@ -21,10 +21,16 @@ $senderPhone = trim($_POST['sender_phone'] ?? '');
 $messageType = ($_POST['message_type'] ?? 'text') === 'voice' ? 'voice' : 'text';
 $bodyText = trim($_POST['body_text'] ?? '');
 
-// A captain sending is identified by an active captain session — never
-// trust a client-supplied "I'm the captain" flag.
+// A captain sending is identified by an active captain session *and*
+// the widget itself explicitly declaring captain context (as_captain=1,
+// only ever sent by the captain-mode widget). Checking the session
+// alone isn't enough — if a captain is logged into their dashboard in
+// one tab and also opens the public site in another tab of the same
+// browser, current_user() would still see their captain session even
+// while they're using the public visitor widget, wrongly attributing
+// their message to the captain instead of whatever name they typed.
 $captainUser = current_user();
-$isCaptain = $captainUser && $captainUser['role'] === 'captain';
+$isCaptain = $captainUser && $captainUser['role'] === 'captain' && ($_POST['as_captain'] ?? '') === '1';
 
 if ($isCaptain) {
     $senderName = $captainUser['name'];

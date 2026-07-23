@@ -51,8 +51,10 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:0.015em;line-
 .btn-block{width:100%;text-align:center;}
 
 /* ---------- hero ---------- */
-.hero{position:relative;min-height:78vh;display:flex;align-items:flex-end;color:var(--chalk);background:var(--gulf-deep);}
-.hero .bg{position:absolute;inset:0;background-size:cover;background-position:center 35%;}
+.hero{position:relative;min-height:78vh;display:flex;align-items:flex-end;color:var(--chalk);background:var(--gulf-deep);overflow:hidden;}
+.hero-bg-rotator{position:absolute;inset:0;}
+.hero .bg{position:absolute;inset:0;background-size:cover;background-position:center 35%;opacity:0;transition:opacity 1.8s ease-in-out;}
+.hero .bg.active{opacity:1;}
 .hero .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,64,78,0.15) 0%,rgba(16,64,78,0.55) 55%,rgba(16,64,78,0.88) 100%);}
 .hero .content{position:relative;z-index:2;padding:0 0 72px;max-width:1200px;margin:0 auto;width:100%;}
 .hero .eyebrow{color:var(--sun);margin-bottom:14px;display:block;}

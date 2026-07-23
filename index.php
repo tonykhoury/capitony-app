@@ -38,7 +38,12 @@ require __DIR__ . '/includes/public-header.php';
 <?php endif; ?>
 
 <section class="hero">
-  <div class="bg" style="background-image:url('/assets/img/deck-catch-day.jpg');"></div>
+  <div class="hero-bg-rotator">
+    <div class="bg active" style="background-image:url('/assets/img/deck-catch-day.jpg');"></div>
+    <div class="bg" style="background-image:url('/assets/img/angler-cobia-dock.jpg'); background-position:center 20%;"></div>
+    <div class="bg" style="background-image:url('/assets/img/hero-nap-sea.jpg');"></div>
+    <div class="bg" style="background-image:url('/assets/img/captain-grouper-light.jpg');"></div>
+  </div>
   <div class="scrim"></div>
   <div class="content wrap">
     <span class="eyebrow">Est. 2026 · Dubai Marina · One Boat</span>
@@ -166,5 +171,18 @@ require __DIR__ . '/includes/public-header.php';
     </div>
   </div>
 </section>
+
+<script>
+(function () {
+  var slides = document.querySelectorAll('.hero-bg-rotator .bg');
+  if (slides.length < 2) return;
+  var current = 0;
+  setInterval(function () {
+    slides[current].classList.remove('active');
+    current = (current + 1) % slides.length;
+    slides[current].classList.add('active');
+  }, 6000);
+})();
+</script>
 
 <?php require __DIR__ . '/includes/public-footer.php'; ?>

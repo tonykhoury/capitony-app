@@ -155,6 +155,13 @@ most Hostinger plans don't include SSH by default:
   Move to a real WhatsApp Business sender + a custom-written template
   before real launch; the current mapping (`ContentVariables`
   in `includes/whatsapp.php`) is a rough fit, not the real message copy.
+  **Self-service management**: `/my-alerts.php` — look up by phone
+  number (no login needed, matching the guest-first pattern everywhere
+  else), pause/resume/remove. Every action re-verifies phone ownership
+  server-side before touching a row — never trusts an id shown on the
+  page alone. Editing species/weight goes through `/edit-alert.php?token=...`,
+  reusing the same `unsubscribe_token` already generated at signup as a
+  lightweight per-alert access key.
 - **Trip booking**: upcoming trips shown on the homepage and a full
   `/trips.php` listing, with a request-to-join form (name, phone, seat
   count). Seats remaining accounts for pending *and* confirmed requests,

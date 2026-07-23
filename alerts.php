@@ -68,6 +68,7 @@ require __DIR__ . '/includes/public-header.php';
       <span class="eyebrow">Catch Alerts</span>
       <h2>Get notified the moment your fish is caught.</h2>
       <p>Pick any species you're after (or leave them all unchecked for anything), set a weight range if you're after something specific, and we'll message you on WhatsApp the second a match is posted.</p>
+      <p style="font-size:0.85rem; margin-top:8px;">Already set one up? <a href="/my-alerts.php" style="color:var(--sun-deep);">Manage your alerts</a>.</p>
     </div>
 
     <?php if ($subscribed): ?>
@@ -79,6 +80,7 @@ require __DIR__ . '/includes/public-header.php';
         and without it our alert won't reach you.
       </div>
       <a href="/shop.php" class="btn btn-sun">Back to Catch of the Day</a>
+      <a href="/my-alerts.php" class="btn btn-quiet">Manage My Alerts</a>
     <?php else: ?>
       <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 

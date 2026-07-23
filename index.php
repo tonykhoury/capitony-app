@@ -190,13 +190,20 @@ require __DIR__ . '/includes/public-header.php';
 <section class="section" style="background:var(--shell-dim);">
   <div class="wrap">
     <div class="section-head">
-      <span class="eyebrow">Instagram</span>
+      <span class="eyebrow">Social</span>
       <h2>Follow the boat.</h2>
-      <p>The freshest look at what's happening — straight from Instagram.</p>
+      <p>The freshest look at what's happening — straight from Instagram and Facebook.</p>
     </div>
-    <!-- Elfsight Instagram Feed | Untitled Instagram Feed -->
+    <!-- Shared Elfsight platform script — loaded once for both widgets below -->
     <script src="https://elfsightcdn.com/platform.js" async></script>
+
+    <h3 style="font-size:0.95rem; color:var(--navy); margin-bottom:14px;">Instagram</h3>
+    <!-- Elfsight Instagram Feed | Untitled Instagram Feed -->
     <div class="elfsight-app-42445437-246b-4d90-87bd-7b3562c6e515" data-elfsight-app-lazy></div>
+
+    <h3 style="font-size:0.95rem; color:var(--navy); margin:34px 0 14px;">Facebook</h3>
+    <!-- Elfsight Facebook Feed | Untitled Facebook Feed -->
+    <div class="elfsight-app-a738b98e-59e6-4eea-b4c3-642fd94196bc" data-elfsight-app-lazy></div>
   </div>
 </section>
 

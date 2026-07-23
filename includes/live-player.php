@@ -15,7 +15,10 @@ $hlsUrl = STREAM_HLS_BASE_URL . $liveSession['stream_key'] . '.m3u8';
 ?>
 <div class="live-player-wrap" id="live">
   <div class="live-player">
-    <video id="capitonyLiveVideo" muted playsinline poster="/assets/img/deck-catch-day.jpg"></video>
+    <video id="capitonyLiveVideo" muted playsinline></video>
+    <div class="live-player-logo-overlay" id="liveLogoOverlay">
+      <img src="/assets/img/logo.png" alt="Capitony">
+    </div>
     <div class="live-player-badge"><span class="live-dot"></span> LIVE</div>
     <div class="live-player-status" id="liveStatusMsg">Connecting to the boat…</div>
   </div>
@@ -29,11 +32,17 @@ $hlsUrl = STREAM_HLS_BASE_URL . $liveSession['stream_key'] . '.m3u8';
 (function () {
   var video = document.getElementById('capitonyLiveVideo');
   var status = document.getElementById('liveStatusMsg');
+  var logoOverlay = document.getElementById('liveLogoOverlay');
   var src = <?= json_encode($hlsUrl) ?>;
   var retryDelay = 5000;
 
   function showStatus(text) { status.textContent = text; status.style.display = 'block'; }
   function hideStatus() { status.style.display = 'none'; }
+
+  // Real video frames are actually arriving — safe to remove the logo
+  // placeholder now, not just when hls.js says the manifest parsed
+  // (which can happen before any frame is actually decoded/visible).
+  video.addEventListener('playing', function () { logoOverlay.style.display = 'none'; });
 
   function attempt() {
     if (window.Hls && Hls.isSupported()) {

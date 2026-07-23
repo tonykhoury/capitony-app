@@ -23,8 +23,11 @@ if (is_post()) {
         redirect('/captain/dashboard.php');
     } elseif ($action === 'go_live' && $trip['status'] === 'live') {
         // Video is now live via a dedicated streaming VPS (see
-        // docs/live-streaming-setup.md) — this generates the stream_key
-        // the captain enters into their broadcasting app (e.g. Larix).
+        // docs/live-streaming-setup.md). The stream_key belongs to the
+        // BOAT (set once in Boats admin, never changes) rather than being
+        // regenerated per session — Larix stays configured permanently
+        // with one URL, and "Go Live" here is purely a database toggle
+        // that never requires touching the streaming hardware at sea.
         //
         // Safety: end any other live_sessions rows first — across ALL
         // trips, not just this one. There's only one boat, so only one
@@ -37,11 +40,19 @@ if (is_post()) {
             "UPDATE live_sessions SET status = 'ended', ended_at = NOW() WHERE status = 'live'"
         )->execute();
 
-        $streamKey = bin2hex(random_bytes(16));
+        $boatKeyStmt = db()->prepare('SELECT stream_key FROM boats WHERE id = ?');
+        $boatKeyStmt->execute([$trip['boat_id']]);
+        $streamKey = $boatKeyStmt->fetchColumn();
+
+        if (!$streamKey) {
+            flash('error', 'This boat has no stream key set — add one in Boats admin first.');
+            redirect('/captain/dashboard.php');
+        }
+
         db()->prepare(
             'INSERT INTO live_sessions (trip_id, started_by, stream_key) VALUES (?, ?, ?)'
         )->execute([$tripId, $user['id'], $streamKey]);
-        flash('success', 'Live session created. Stream key: ' . $streamKey);
+        flash('success', 'Live session started — Larix should already be configured with this boat\'s permanent stream key.');
         redirect('/captain/dashboard.php');
     } elseif ($action === 'end_live') {
         $sessionId = (int)($_POST['session_id'] ?? 0);

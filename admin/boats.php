@@ -46,8 +46,8 @@ if (is_post()) {
                         }
                         flash('success', "Updated {$name}.");
                     } else {
-                        db()->prepare('INSERT INTO boats (name, code, image_path) VALUES (?, ?, ?)')
-                            ->execute([$name, $code, $newImagePath]);
+                        db()->prepare('INSERT INTO boats (name, code, image_path, stream_key) VALUES (?, ?, ?, ?)')
+                            ->execute([$name, $code, $newImagePath, bin2hex(random_bytes(16))]);
                         flash('success', "Added {$name}.");
                     }
                     redirect('/admin/boats.php');
@@ -58,6 +58,11 @@ if (is_post()) {
         $id = (int)($_POST['boat_id'] ?? 0);
         db()->prepare('UPDATE boats SET is_active = NOT is_active WHERE id = ?')->execute([$id]);
         redirect('/admin/boats.php');
+    } elseif ($action === 'regenerate_key') {
+        $id = (int)($_POST['boat_id'] ?? 0);
+        db()->prepare('UPDATE boats SET stream_key = ? WHERE id = ?')->execute([bin2hex(random_bytes(16)), $id]);
+        flash('success', 'New stream key generated — update Larix with the new URL before the next trip.');
+        redirect('/admin/boats.php?edit=' . $id);
     } elseif ($action === 'delete') {
         $id = (int)($_POST['boat_id'] ?? 0);
         $row = db()->prepare('SELECT image_path FROM boats WHERE id = ?');
@@ -113,6 +118,22 @@ $boats = db()->query('SELECT * FROM boats ORDER BY name')->fetchAll();
       <label for="code">Short code (used in catch SKUs)</label>
       <input type="text" id="code" name="code" required maxlength="10" style="text-transform:uppercase;" value="<?= e($editing['code'] ?? '') ?>" placeholder="e.g. TN2">
       <p style="color:var(--scale); font-size:0.78rem; margin-top:-12px; margin-bottom:16px;">2-10 letters/numbers, must be unique across boats. Fish caught on this boat get SKUs like <?= e($editing['code'] ?? 'TN2') ?>-260722-01.</p>
+
+      <?php if ($editing && !empty($editing['stream_key'])): ?>
+      <div class="warning-box" style="margin-top:0;">
+        <strong>Larix RTMP URL for this boat</strong> — set this once in Larix, and it never needs to change again.
+        Clicking "Go Live" in the captain dashboard always uses this same key.
+        <div style="font-family:var(--mono); font-size:0.82rem; background:rgba(0,0,0,0.04); padding:8px 10px; margin-top:8px; word-break:break-all; user-select:all;">
+          rtmp://stream.capitony.live/stream/<?= e($editing['stream_key']) ?>
+        </div>
+        <form method="post" onsubmit="return confirm('This invalidates the current key — Larix will need updating with the new URL before the next trip. Continue?');" style="margin-top:10px;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="action" value="regenerate_key">
+          <input type="hidden" name="boat_id" value="<?= (int)$editing['id'] ?>">
+          <button type="submit" class="btn btn-quiet" style="font-size:0.72rem; padding:6px 12px;">Regenerate Key (only if compromised)</button>
+        </form>
+      </div>
+      <?php endif; ?>
 
       <label for="image">Boat photo</label>
       <?php if (!empty($editing['image_path'])): ?>

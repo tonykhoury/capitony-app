@@ -137,7 +137,11 @@ most Hostinger plans don't include SSH by default:
   a dedicated VPS running nginx-rtmp in Docker (see
   `docs/live-streaming-setup.md`); homepage plays it back live via
   hls.js, with a "starting soon" retry state and automatic fallback for
-  Safari's native HLS support
+  Safari's native HLS support. **Stream key belongs to the boat, not the
+  session** (`boats.stream_key`, set once in Boats admin) — "Go Live" is
+  a pure database toggle that never regenerates the key, so Larix (often
+  running on separate hardware from whatever the captain clicks "Go
+  Live" on) only ever needs configuring once, not before every trip.
 - **WhatsApp catch alerts**: visitors set an alert at `/alerts.php` —
   any number of species (checkboxes, none selected = any species, via
   the `catch_alert_species` junction table), and a weight condition of

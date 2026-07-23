@@ -69,6 +69,15 @@ anything from them.
   isn't worth it; revisit if spam becomes a real issue. **Nothing is
   ever deleted** — full permanent history across every session, browsable
   at `/admin/chat-history.php`.
+- **Social media presence**: Instagram feed embedded on the homepage
+  ("Follow the Boat" section) via Elfsight — deliberately a widget, not
+  a custom Meta API integration. Matches how comparable fishing charter
+  businesses actually operate: post natively to Instagram first (fits
+  the real on-boat workflow), let the website auto-reflect it. No OAuth
+  tokens, no App Review, no maintenance on our side — the vendor handles
+  all of that. A full custom build (auto-publish uploads + webhook-based
+  comment sync) was researched and deliberately not pursued; git history
+  around this decision has the design notes if it's ever revisited.
 - **Zoho Books invoice automation**: fires when an order is marked
   **"confirmed"** — not at checkout/order placement. An order existing
   isn't the same as it being reviewed and accepted, so invoicing waits
@@ -305,82 +314,6 @@ most Hostinger plans don't include SSH by default:
     entirely, or run both channels into the same `chat_messages` feed
     (would need a `channel` column to know where to send captain replies
     back to — WhatsApp API call vs. just leaving it in the web feed).
-- **Social media presence (RECOMMENDED APPROACH — widget embed, not a
-  custom build)**: researched what comparable businesses (fishing
-  charters, marine/charter operators) actually do, and it's the reverse
-  of what we'd originally scoped. Industry norm: **post natively to
-  Instagram/Facebook first** (directly from the captain's phone — fits
-  the real on-boat workflow better than any custom upload flow could),
-  then **embed a live, auto-updating feed widget on the website** using
-  an off-the-shelf tool — not a custom Meta API integration.
-  - No Meta App Review needed for most widget tools — some work with
-    even a standard connected account.
-  - No OAuth token maintenance on our side — the vendor handles token
-    renewal, API version changes, rate limits.
-  - Setup is copy-paste an embed snippet, not a development project.
-  - **EmbedSocial** specifically also aggregates comments/engagement
-    into the widget — covers the "see exchanges reflected on the site"
-    half of the original goal without any webhook infrastructure.
-  - Free tiers exist for modest traffic (Elfsight: 1 widget, 5 sources,
-    200 views/month; Common Ninja has a comparable free tier). Paid
-    tiers start around $5/month if traffic outgrows that.
-  - **Next step is yours, not a dev task**: pick a vendor (Elfsight is a
-    reasonable free starting point; EmbedSocial if the comment-display
-    piece matters most), sign up, connect the Instagram/Facebook
-    accounts through their interface, and send me the resulting embed
-    code — dropping it into the homepage or a dedicated page is a quick
-    follow-up once you have it.
-  - The original custom API build (auto-publish uploads + webhook-based
-    comment sync, detailed design notes below) stays as the fallback
-    only if the website genuinely needs to be the source of truth rather
-    than Instagram — worth revisiting only if that requirement shows up.
-
-  <details>
-  <summary>Original custom-build design notes (kept for reference, not the current plan)</summary>
-
-  **Outbound — publish to Instagram/Facebook:**
-  - Instagram requires a Business/Creator account linked to a Facebook
-    Page, and publishing is a "container" flow: `POST /{ig-user-id}/media`
-    with a public `image_url`/`video_url` (our `media.php` URLs already
-    satisfy this), poll `GET /{container-id}?fields=status_code` until
-    `FINISHED` for video, then `POST /{ig-user-id}/media_publish`.
-    Facebook Page posting is similar but simpler for photos.
-  - Since this only ever needs to post to **Capitony's own accounts**,
-    a Meta developer app in Development Mode with those accounts added
-    as testers likely covers it (Meta allows up to 25 test users without
-    full App Review) — this is the more confident half of the two.
-  - Needs OAuth setup once (long-lived Page access token + connected IG
-    user ID stored in `config.php`, same pattern as Twilio/Zoho creds).
-  - Open design question: does "every image/video uploaded" mean the
-    curated Photo Album only, or also every individual Catch of the Day
-    photo? The latter could mean multiple posts per trip (one per fish),
-    which may be too frequent for a following — worth deciding before
-    building, not after.
-  - Needs `instagram_post_id` / `facebook_post_id` columns on
-    `gallery_items` for idempotency (never double-post the same upload),
-    and — like Zoho — should be non-blocking: a failed social post should
-    never block the upload itself from succeeding.
-
-  **Inbound — pull comments back to the site:**
-  - Needs a different, additional permission: `instagram_manage_comments`
-    (Instagram) and `pages_read_engagement` (Facebook Page). Reading
-    other people's engagement data is scrutinized more heavily than
-    publishing your own content — current sources genuinely disagree on
-    whether Development Mode + testers covers this or whether it
-    triggers real App Review even for a single business's own account.
-  - Should be webhook-driven, not polled — Instagram's rate limit is a
-    formula tied to account impressions, and a small account has a
-    correspondingly small budget; polling would burn through it fast.
-    Register a webhook URL (e.g. `/social-webhook.php`), subscribe to
-    the `comments` field, handle Meta's one-time verification challenge
-    (echo back a `hub.challenge` value) before it activates.
-  - The webhook payload itself is just a "something changed" ping, not
-    the actual comment — a follow-up `GET /{comment-id}` call fetches
-    the real text/author once notified.
-  - Needs a new `social_comments` table (platform, post reference,
-    author name, comment text, timestamp) and either a dedicated page or
-    a homepage block to actually display them, per the stated goal.
-  </details>
 
 - **Forgot-password for visitor accounts**: staff (admin/captain) get
   admin-assisted resets since there's already a human on the other end.

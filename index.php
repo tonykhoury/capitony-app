@@ -187,6 +187,19 @@ require __DIR__ . '/includes/public-header.php';
   </div>
 </section>
 
+<section class="section" style="background:var(--shell-dim);">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Instagram</span>
+      <h2>Follow the boat.</h2>
+      <p>The freshest look at what's happening — straight from Instagram.</p>
+    </div>
+    <!-- Elfsight Instagram Feed | Untitled Instagram Feed -->
+    <script src="https://elfsightcdn.com/platform.js" async></script>
+    <div class="elfsight-app-42445437-246b-4d90-87bd-7b3562c6e515" data-elfsight-app-lazy></div>
+  </div>
+</section>
+
 <script>
 (function () {
   var slides = document.querySelectorAll('.hero-bg-rotator .hero-slide');

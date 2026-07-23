@@ -171,14 +171,11 @@ if (is_post()) {
             $pdo->commit();
             cart_clear();
             $confirmedGroupId = $groupId;
-
-            // Outside the transaction deliberately — this is an external
-            // network call to Zoho, and the order must be considered
-            // successfully placed regardless of whether Zoho is reachable.
-            // sync_order_to_zoho() catches its own errors internally.
-            if (defined('ZOHO_CLIENT_ID') && ZOHO_CLIENT_ID !== 'CHANGE_ME') {
-                sync_order_to_zoho($groupId);
-            }
+            // Zoho invoicing intentionally does NOT happen here — an order
+            // being placed isn't the same as it being reviewed/accepted.
+            // The invoice fires when admin or captain marks the order
+            // "confirmed" instead (see admin/orders.php, order-detail.php,
+            // captain/orders.php).
         } catch (Throwable $e) {
             $pdo->rollBack();
             $error = $e instanceof RuntimeException ? $e->getMessage() : 'Something went wrong placing your order. Please try again.';

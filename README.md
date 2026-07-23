@@ -69,23 +69,33 @@ anything from them.
   isn't worth it; revisit if spam becomes a real issue. **Nothing is
   ever deleted** — full permanent history across every session, browsable
   at `/admin/chat-history.php`.
-- **Zoho Books invoice automation**: fires automatically right after a
-  checkout order commits — outside the DB transaction deliberately,
-  since it's an external network call and the order must count as
-  placed regardless of whether Zoho is reachable. Uses a **Self Client**
-  (Zoho's recommended pattern for a backend job acting on your own
-  account, no live user present) with the Authorization Code flow — this
-  matters because the alternative Client Credentials flow doesn't issue
-  a refresh token at all. Matches or creates a Zoho contact by email,
-  then creates an invoice with ad-hoc line items (fish + clean/cook fees
-  + delivery, no pre-mapped item catalog needed). `order_groups.zoho_invoice_id`
-  tracks what's synced (idempotent — a retry never double-invoices);
-  `zoho_sync_error` captures the reason on failure, both visible on the
-  admin order detail page. Silently does nothing if `ZOHO_CLIENT_ID` is
-  still the placeholder value, so it's safe to deploy before setup is
-  finished. Access tokens are minted fresh from the refresh token on
-  every call rather than cached — order volume is nowhere near frequent
-  enough to justify the added complexity of expiry tracking.
+- **Zoho Books invoice automation**: fires when an order is marked
+  **"confirmed"** — not at checkout/order placement. An order existing
+  isn't the same as it being reviewed and accepted, so invoicing waits
+  for a human (admin, via `/admin/orders.php` or `/admin/order-detail.php`,
+  or the captain via `/captain/orders.php`) to actually confirm it first.
+  Runs outside any DB transaction deliberately, since it's an external
+  network call and the status change must stick regardless of whether
+  Zoho is reachable. Uses a **Self Client** (Zoho's recommended pattern
+  for a backend job acting on your own account, no live user present)
+  with the Authorization Code flow — this matters because the
+  alternative Client Credentials flow doesn't issue a refresh token at
+  all. Matches or creates a Zoho contact by email, then creates an
+  invoice with ad-hoc line items (fish + clean/cook fees + delivery, no
+  pre-mapped item catalog needed). `order_groups.zoho_invoice_id` tracks
+  what's synced (idempotent — a retry, or confirming twice, never
+  double-invoices); `zoho_sync_error` captures the reason on failure,
+  both visible on the admin order detail page. Silently does nothing if
+  `ZOHO_CLIENT_ID` is still the placeholder value, so it's safe to
+  deploy before setup is finished. Access tokens are minted fresh from
+  the refresh token on every call rather than cached — order volume is
+  nowhere near frequent enough to justify the added complexity of
+  expiry tracking.
+- **Captain order confirmation**: `/captain/orders.php` was previously
+  view-only; captains can now confirm an order (verified server-side
+  against their own trips before allowing it, never trusting a
+  submitted order id alone) directly from the harbor-sorting view,
+  triggering the same Zoho invoice flow as an admin confirming it.
 - **Admin order management**: `/admin/orders.php` (list, filterable by
   status) and `/admin/order-detail.php` (line items, status updates —
   pending/confirmed/fulfilled/cancelled, kept in sync between

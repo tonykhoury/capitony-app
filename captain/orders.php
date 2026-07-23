@@ -2,6 +2,33 @@
 require __DIR__ . '/../includes/bootstrap.php';
 $user = require_role('captain');
 
+if (is_post()) {
+    csrf_verify();
+    $groupId = (int)($_POST['group_id'] ?? 0);
+
+    // Verify this order actually belongs to one of THIS captain's trips
+    // before touching it — never trust a client-submitted id alone.
+    $owns = db()->prepare(
+        "SELECT DISTINCT og.id FROM order_groups og
+         JOIN orders o ON o.order_group_id = og.id
+         JOIN catch_items ci ON ci.id = o.catch_item_id
+         JOIN trips t ON t.id = ci.trip_id
+         WHERE og.id = ? AND t.captain_id = ?"
+    );
+    $owns->execute([$groupId, $user['id']]);
+
+    if ($owns->fetch()) {
+        db()->prepare("UPDATE order_groups SET status = 'confirmed' WHERE id = ?")->execute([$groupId]);
+        db()->prepare("UPDATE orders SET status = 'confirmed' WHERE order_group_id = ?")->execute([$groupId]);
+
+        if (defined('ZOHO_CLIENT_ID') && ZOHO_CLIENT_ID !== 'CHANGE_ME') {
+            sync_order_to_zoho($groupId);
+        }
+        flash('success', "Order #{$groupId} confirmed.");
+    }
+    redirect('/captain/orders.php' . (isset($_GET['date']) ? '?date=' . urlencode($_GET['date']) : ''));
+}
+
 $dateFilter = $_GET['date'] ?? date('Y-m-d'); // defaults to today
 
 $trips = db()->prepare(
@@ -73,7 +100,7 @@ if ($tripIds) {
       <p style="color:var(--scale); font-size:0.88rem;">No orders placed against this trip's catch yet.</p>
     <?php else: ?>
     <table>
-      <tr><th>SKU</th><th>Species</th><th>Weight</th><th>Service</th><th>Customer</th><th>Status</th></tr>
+      <tr><th>SKU</th><th>Species</th><th>Weight</th><th>Service</th><th>Customer</th><th>Status</th><th></th></tr>
       <?php foreach ($tripOrders as $o): ?>
       <tr>
         <td style="font-family:var(--mono); font-weight:600;"><?= e($o['sku'] ?? '—') ?></td>
@@ -86,6 +113,15 @@ if ($tripIds) {
         </td>
         <td><?= e($o['visitor_name']) ?><br><span style="font-family:var(--mono); font-size:0.75rem; color:var(--scale);"><?= e($o['visitor_phone']) ?></span></td>
         <td><span class="badge badge-<?= $o['status'] === 'fulfilled' ? 'completed' : 'scheduled' ?>"><?= e($o['status']) ?></span></td>
+        <td>
+          <?php if ($o['status'] === 'pending'): ?>
+          <form method="post" style="margin:0;">
+            <?= csrf_field() ?>
+            <input type="hidden" name="group_id" value="<?= (int)$o['order_group_id'] ?>">
+            <button type="submit" class="btn btn-amber" style="font-size:0.7rem; padding:6px 10px;">Confirm</button>
+          </form>
+          <?php endif; ?>
+        </td>
       </tr>
       <?php endforeach; ?>
     </table>

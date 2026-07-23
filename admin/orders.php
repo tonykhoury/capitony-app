@@ -11,6 +11,15 @@ if (is_post()) {
         // Keep line items in sync with the group-level status — the group
         // is what a human thinks of as "the order," line items are detail.
         db()->prepare('UPDATE orders SET status = ? WHERE order_group_id = ?')->execute([$newStatus, $groupId]);
+
+        // Invoice fires on confirmation, not on order placement — an order
+        // existing isn't the same as it being reviewed and accepted.
+        // sync_order_to_zoho() is idempotent (checks zoho_invoice_id first)
+        // and catches its own errors, so this is always safe to call.
+        if ($newStatus === 'confirmed' && defined('ZOHO_CLIENT_ID') && ZOHO_CLIENT_ID !== 'CHANGE_ME') {
+            sync_order_to_zoho($groupId);
+        }
+
         flash('success', "Order #{$groupId} marked {$newStatus}.");
         redirect('/admin/orders.php' . (isset($_GET['status']) ? '?status=' . urlencode($_GET['status']) : ''));
     }

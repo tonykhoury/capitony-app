@@ -10,6 +10,11 @@ if (is_post()) {
     if (in_array($newStatus, ['pending', 'confirmed', 'fulfilled', 'cancelled'], true)) {
         db()->prepare('UPDATE order_groups SET status = ? WHERE id = ?')->execute([$newStatus, $groupId]);
         db()->prepare('UPDATE orders SET status = ? WHERE order_group_id = ?')->execute([$newStatus, $groupId]);
+
+        if ($newStatus === 'confirmed' && defined('ZOHO_CLIENT_ID') && ZOHO_CLIENT_ID !== 'CHANGE_ME') {
+            sync_order_to_zoho($groupId);
+        }
+
         flash('success', "Order marked {$newStatus}.");
         redirect('/admin/order-detail.php?id=' . $groupId);
     }

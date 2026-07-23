@@ -305,21 +305,23 @@ most Hostinger plans don't include SSH by default:
     entirely, or run both channels into the same `chat_messages` feed
     (would need a `channel` column to know where to send captain replies
     back to — WhatsApp API call vs. just leaving it in the web feed).
-- **Social media auto-publish (PARKED — Instagram + Facebook)**: every
-  photo/video uploaded to the site also gets published to Instagram and
-  Facebook automatically. Design notes:
+- **Social media integration (PARKED — Instagram + Facebook, TWO
+  DIRECTIONS)**: outbound (publish uploaded media to social) and inbound
+  (pull comments back onto the site — a page or homepage block) are
+  genuinely separate pieces of work with different permissions and
+  different confidence levels on review requirements.
+
+  **Outbound — publish to Instagram/Facebook:**
   - Instagram requires a Business/Creator account linked to a Facebook
     Page, and publishing is a "container" flow: `POST /{ig-user-id}/media`
     with a public `image_url`/`video_url` (our `media.php` URLs already
     satisfy this), poll `GET /{container-id}?fields=status_code` until
     `FINISHED` for video, then `POST /{ig-user-id}/media_publish`.
     Facebook Page posting is similar but simpler for photos.
-  - Since this only ever needs to post to **Capitony's own accounts**
-    (not third-party accounts), Meta's full App Review process likely
-    isn't required — a Meta developer app in Development Mode can
-    publish to accounts added as testers/admins on the app itself. Worth
-    confirming this still holds at setup time, but it avoids the
-    multi-week review cycle that a real third-party integration would need.
+  - Since this only ever needs to post to **Capitony's own accounts**,
+    a Meta developer app in Development Mode with those accounts added
+    as testers likely covers it (Meta allows up to 25 test users without
+    full App Review) — this is the more confident half of the two.
   - Needs OAuth setup once (long-lived Page access token + connected IG
     user ID stored in `config.php`, same pattern as Twilio/Zoho creds).
   - Open design question: does "every image/video uploaded" mean the
@@ -331,6 +333,29 @@ most Hostinger plans don't include SSH by default:
     `gallery_items` for idempotency (never double-post the same upload),
     and — like Zoho — should be non-blocking: a failed social post should
     never block the upload itself from succeeding.
+
+  **Inbound — pull comments back to the site:**
+  - Needs a different, additional permission: `instagram_manage_comments`
+    (Instagram) and `pages_read_engagement` (Facebook Page). Reading
+    other people's engagement data is scrutinized more heavily than
+    publishing your own content — current sources genuinely disagree on
+    whether Development Mode + testers covers this or whether it
+    triggers real App Review even for a single business's own account.
+    **This needs to be tested directly in the console rather than
+    assumed** — budget time for a possible review cycle here even though
+    the publish half likely won't need one.
+  - Should be webhook-driven, not polled — Instagram's rate limit is a
+    formula tied to account impressions, and a small account has a
+    correspondingly small budget; polling would burn through it fast.
+    Register a webhook URL (e.g. `/social-webhook.php`), subscribe to
+    the `comments` field, handle Meta's one-time verification challenge
+    (echo back a `hub.challenge` value) before it activates.
+  - The webhook payload itself is just a "something changed" ping, not
+    the actual comment — a follow-up `GET /{comment-id}` call fetches
+    the real text/author once notified.
+  - Needs a new `social_comments` table (platform, post reference,
+    author name, comment text, timestamp) and either a dedicated page or
+    a homepage block to actually display them, per the stated goal.
 
 - **Forgot-password for visitor accounts**: staff (admin/captain) get
   admin-assisted resets since there's already a human on the other end.

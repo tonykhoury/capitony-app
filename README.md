@@ -69,6 +69,23 @@ anything from them.
   isn't worth it; revisit if spam becomes a real issue. **Nothing is
   ever deleted** — full permanent history across every session, browsable
   at `/admin/chat-history.php`.
+- **Zoho Books invoice automation**: fires automatically right after a
+  checkout order commits — outside the DB transaction deliberately,
+  since it's an external network call and the order must count as
+  placed regardless of whether Zoho is reachable. Uses a **Self Client**
+  (Zoho's recommended pattern for a backend job acting on your own
+  account, no live user present) with the Authorization Code flow — this
+  matters because the alternative Client Credentials flow doesn't issue
+  a refresh token at all. Matches or creates a Zoho contact by email,
+  then creates an invoice with ad-hoc line items (fish + clean/cook fees
+  + delivery, no pre-mapped item catalog needed). `order_groups.zoho_invoice_id`
+  tracks what's synced (idempotent — a retry never double-invoices);
+  `zoho_sync_error` captures the reason on failure, both visible on the
+  admin order detail page. Silently does nothing if `ZOHO_CLIENT_ID` is
+  still the placeholder value, so it's safe to deploy before setup is
+  finished. Access tokens are minted fresh from the refresh token on
+  every call rather than cached — order volume is nowhere near frequent
+  enough to justify the added complexity of expiry tracking.
 - **Admin order management**: `/admin/orders.php` (list, filterable by
   status) and `/admin/order-detail.php` (line items, status updates —
   pending/confirmed/fulfilled/cancelled, kept in sync between
@@ -275,35 +292,6 @@ most Hostinger plans don't include SSH by default:
     `gallery_items` for idempotency (never double-post the same upload),
     and — like Zoho — should be non-blocking: a failed social post should
     never block the upload itself from succeeding.
-
-- **Zoho Books invoice automation (PARKED)**: auto-generate an invoice in
-  Zoho Books for every completed order. Design notes based on how Zoho's
-  API actually works:
-  - Zoho Books has **no programmatic webhook subscription** — outbound
-    webhooks can only be configured manually through Zoho's own workflow
-    rules UI, not via API. So the integration has to run the other
-    direction: **our checkout.php pushes to Zoho** right after an order
-    commits successfully, rather than Zoho pushing to us.
-  - Auth is OAuth 2.0 with a refresh-token flow (register an API client
-    in Zoho's API console, store the refresh token in `config.php`
-    alongside the Twilio credentials — same sensitivity level).
-  - Every API call needs an `organization_id`, and Zoho runs **separate
-    regional API domains** (`.com`, `.eu`, `.in`, `.com.au`, `.jp`,
-    `.ca`) — need to confirm which data center this Zoho account is on
-    before writing the integration, or requests will silently fail.
-  - Flow: on successful checkout, match-or-create the customer contact
-    in Zoho by phone/email, map each order line to a Zoho invoice line
-    item (species + weight + services as line items — simplest to use
-    ad-hoc line items with description/rate/quantity rather than
-    pre-mapping every species into Zoho's item catalog), then create the
-    invoice with the `order_groups.id` as an external reference for
-    idempotency (so a retried request never creates a duplicate
-    invoice). Needs a `zoho_invoice_id` column added to `order_groups`
-    to track what's already been synced.
-  - Failures need to be non-blocking — if Zoho's API is down, the order
-    itself must still complete; the invoice sync should be a
-    best-effort follow-up step (or a small retry queue) rather than part
-    of the checkout transaction itself.
 
 - **Forgot-password for visitor accounts**: staff (admin/captain) get
   admin-assisted resets since there's already a human on the other end.

@@ -62,6 +62,12 @@ $lines = $lines->fetchAll();
       <span class="badge badge-<?= $group['status'] === 'fulfilled' ? 'completed' : ($group['status'] === 'live' ? 'live' : 'scheduled') ?>" style="font-size:0.85rem;"><?= e($group['status']) ?></span>
     </div>
 
+    <?php if (!empty($group['zoho_invoice_id'])): ?>
+      <div class="alert alert-success" style="margin-top:14px;">Synced to Zoho Books — Invoice ID <?= e($group['zoho_invoice_id']) ?></div>
+    <?php elseif (!empty($group['zoho_sync_error'])): ?>
+      <div class="alert alert-error" style="margin-top:14px;">Zoho sync failed: <?= e($group['zoho_sync_error']) ?></div>
+    <?php endif; ?>
+
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:20px;">
       <div>
         <h3 style="font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--scale); margin-bottom:8px;">Customer</h3>

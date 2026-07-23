@@ -43,6 +43,16 @@ define('TWILIO_WHATSAPP_TEMPLATE_SID', 'CHANGE_ME');
 // adjust if your account's folder layout differs.
 define('UPLOADS_STORAGE_DIR', dirname(__DIR__, 2) . '/private_uploads');
 
+// --- Zoho Books invoicing (auto-invoice on order) -----------------------
+// Get these from api-console.zoho.com (Self Client) + Zoho Books settings.
+// Never commit real values here — this file is the template.
+define('ZOHO_CLIENT_ID', 'CHANGE_ME');
+define('ZOHO_CLIENT_SECRET', 'CHANGE_ME');
+define('ZOHO_REFRESH_TOKEN', 'CHANGE_ME'); // permanent — from the one-time OAuth exchange
+define('ZOHO_ORGANIZATION_ID', 'CHANGE_ME');
+define('ZOHO_ACCOUNTS_DOMAIN', 'https://accounts.zoho.com'); // matches your data center
+define('ZOHO_API_DOMAIN', 'https://www.zohoapis.com'); // matches your data center
+
 // --- Live streaming (separate VPS — see docs/live-streaming-setup.md) ---
 // Base URL for HLS playback. The player builds the full URL as
 // STREAM_HLS_BASE_URL . stream_key . '.m3u8'

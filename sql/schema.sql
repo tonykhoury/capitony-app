@@ -178,8 +178,10 @@ CREATE TABLE live_sessions (
     started_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ended_at            DATETIME NULL,
     FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
-    FOREIGN KEY (started_by) REFERENCES users(id) ON DELETE RESTRICT,
-    UNIQUE KEY uq_live_sessions_key (stream_key)
+    FOREIGN KEY (started_by) REFERENCES users(id) ON DELETE RESTRICT
+    -- No UNIQUE on stream_key: it's permanent per boat (see boats.stream_key,
+    -- added in migration 015) and deliberately reused across every "Go Live"
+    -- click for that boat, not regenerated per session.
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE chat_messages (

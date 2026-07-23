@@ -197,13 +197,18 @@ require __DIR__ . '/includes/public-header.php';
     <!-- Shared Elfsight platform script — loaded once for both widgets below -->
     <script src="https://elfsightcdn.com/platform.js" async></script>
 
-    <h3 style="font-size:0.95rem; color:var(--navy); margin-bottom:14px;">Instagram</h3>
-    <!-- Elfsight Instagram Feed | Untitled Instagram Feed -->
-    <div class="elfsight-app-42445437-246b-4d90-87bd-7b3562c6e515" data-elfsight-app-lazy></div>
-
-    <h3 style="font-size:0.95rem; color:var(--navy); margin:34px 0 14px;">Facebook</h3>
-    <!-- Elfsight Facebook Feed | Untitled Facebook Feed -->
-    <div class="elfsight-app-a738b98e-59e6-4eea-b4c3-642fd94196bc" data-elfsight-app-lazy></div>
+    <div class="social-feeds-grid">
+      <div>
+        <h3 style="font-size:0.95rem; color:var(--navy); margin-bottom:14px;">Instagram</h3>
+        <!-- Elfsight Instagram Feed | Untitled Instagram Feed -->
+        <div class="elfsight-app-42445437-246b-4d90-87bd-7b3562c6e515" data-elfsight-app-lazy></div>
+      </div>
+      <div>
+        <h3 style="font-size:0.95rem; color:var(--navy); margin-bottom:14px;">Facebook</h3>
+        <!-- Elfsight Facebook Feed | Untitled Facebook Feed -->
+        <div class="elfsight-app-a738b98e-59e6-4eea-b4c3-642fd94196bc" data-elfsight-app-lazy></div>
+      </div>
+    </div>
   </div>
 </section>
 

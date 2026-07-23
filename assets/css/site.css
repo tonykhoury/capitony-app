@@ -123,6 +123,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:0.015em;line-
 
 /* ---------- steps ---------- */
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;}
+.social-feeds-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start;}
 .step{border-top:3px solid var(--sun);padding-top:20px;}
 .step h3{font-size:1.05rem;color:var(--navy);margin-bottom:8px;}
 .step p{color:#4E626B;font-size:0.95rem;}
@@ -167,6 +168,7 @@ textarea{resize:vertical;}
   .band{grid-template-columns:1fr;}
   .band .photo{min-height:320px;}
   .steps{grid-template-columns:1fr;}
+  .social-feeds-grid{grid-template-columns:1fr;gap:34px;}
   .site-footer .cols{grid-template-columns:1fr 1fr;}
 }
 @media (max-width:720px){

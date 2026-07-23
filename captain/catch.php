@@ -38,16 +38,30 @@ if (is_post()) {
             }
             if (!$error) {
                 $pdo = db();
-                $pdo->prepare(
-                    'INSERT INTO catch_items (trip_id, species_id, weight_kg, price_per_kg_aed, photo_path, posted_by)
-                     VALUES (?, ?, ?, ?, ?, ?)'
-                )->execute([$tripId, $speciesId, $weight, $price, $imagePath, $user['id']]);
 
-                // SKU derived from the row's own auto-increment ID — guarantees
-                // uniqueness for free, no separate counter/race condition to manage.
+                // Sequence = how many fish this BOAT has posted across all
+                // its trips TODAY (not just this one trip) — scoping to a
+                // single trip_id would let two same-day trips both start
+                // their count at 1, producing identical, colliding SKUs.
+                $seqStmt = $pdo->prepare(
+                    "SELECT COUNT(*) FROM catch_items ci
+                     JOIN trips t2 ON t2.id = ci.trip_id
+                     WHERE t2.boat_id = ? AND DATE(t2.departs_at) = DATE(?)"
+                );
+                $seqStmt->execute([$trip['boat_id'], $trip['departs_at']]);
+                $sequence = (int)$seqStmt->fetchColumn() + 1;
+
+                $boatCodeStmt = $pdo->prepare('SELECT code FROM boats WHERE id = ?');
+                $boatCodeStmt->execute([$trip['boat_id']]);
+                $boatCode = $boatCodeStmt->fetchColumn() ?: 'BOAT';
+
+                $sku = sprintf('%s-%s-%02d', $boatCode, date('ymd', strtotime($trip['departs_at'])), $sequence);
+
+                $pdo->prepare(
+                    'INSERT INTO catch_items (trip_id, species_id, weight_kg, price_per_kg_aed, photo_path, posted_by, sku)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)'
+                )->execute([$tripId, $speciesId, $weight, $price, $imagePath, $user['id'], $sku]);
                 $newId = (int)$pdo->lastInsertId();
-                $sku = 'CAP-' . str_pad((string)$newId, 6, '0', STR_PAD_LEFT);
-                $pdo->prepare('UPDATE catch_items SET sku = ? WHERE id = ?')->execute([$sku, $newId]);
 
                 // Non-blocking: alert failures are logged internally and never
                 // prevent the catch posting itself from succeeding.

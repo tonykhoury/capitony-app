@@ -11,14 +11,21 @@ if (is_post()) {
     if ($action === 'save') {
         $id = (int)($_POST['boat_id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
+        $code = strtoupper(trim($_POST['code'] ?? ''));
 
-        if ($name === '') {
-            $error = 'Boat name is required.';
+        if ($name === '' || $code === '') {
+            $error = 'Boat name and code are both required.';
+        } elseif (!preg_match('/^[A-Z0-9]{2,10}$/', $code)) {
+            $error = 'Code must be 2-10 letters/numbers only (used in catch SKUs, so keep it short — e.g. "TN2").';
         } else {
             $dupe = db()->prepare('SELECT id FROM boats WHERE name = ? AND id != ?');
             $dupe->execute([$name, $id]);
+            $dupeCode = db()->prepare('SELECT id FROM boats WHERE code = ? AND id != ?');
+            $dupeCode->execute([$code, $id]);
             if ($dupe->fetch()) {
                 $error = 'A boat with that name already exists.';
+            } elseif ($dupeCode->fetch()) {
+                $error = 'That code is already used by another boat — codes must be unique since they appear in SKUs.';
             } else {
                 try {
                     $newImagePath = handle_image_upload('image', 'boats');
@@ -32,15 +39,15 @@ if (is_post()) {
                             $old = db()->prepare('SELECT image_path FROM boats WHERE id = ?');
                             $old->execute([$id]);
                             delete_uploaded_image($old->fetchColumn() ?: null);
-                            db()->prepare('UPDATE boats SET name=?, image_path=? WHERE id=?')
-                                ->execute([$name, $newImagePath, $id]);
+                            db()->prepare('UPDATE boats SET name=?, code=?, image_path=? WHERE id=?')
+                                ->execute([$name, $code, $newImagePath, $id]);
                         } else {
-                            db()->prepare('UPDATE boats SET name=? WHERE id=?')->execute([$name, $id]);
+                            db()->prepare('UPDATE boats SET name=?, code=? WHERE id=?')->execute([$name, $code, $id]);
                         }
                         flash('success', "Updated {$name}.");
                     } else {
-                        db()->prepare('INSERT INTO boats (name, image_path) VALUES (?, ?)')
-                            ->execute([$name, $newImagePath]);
+                        db()->prepare('INSERT INTO boats (name, code, image_path) VALUES (?, ?, ?)')
+                            ->execute([$name, $code, $newImagePath]);
                         flash('success', "Added {$name}.");
                     }
                     redirect('/admin/boats.php');
@@ -103,6 +110,10 @@ $boats = db()->query('SELECT * FROM boats ORDER BY name')->fetchAll();
       <label for="name">Boat name</label>
       <input type="text" id="name" name="name" required value="<?= e($editing['name'] ?? '') ?>" placeholder="e.g. Tony II">
 
+      <label for="code">Short code (used in catch SKUs)</label>
+      <input type="text" id="code" name="code" required maxlength="10" style="text-transform:uppercase;" value="<?= e($editing['code'] ?? '') ?>" placeholder="e.g. TN2">
+      <p style="color:var(--scale); font-size:0.78rem; margin-top:-12px; margin-bottom:16px;">2-10 letters/numbers, must be unique across boats. Fish caught on this boat get SKUs like <?= e($editing['code'] ?? 'TN2') ?>-260722-01.</p>
+
       <label for="image">Boat photo</label>
       <?php if (!empty($editing['image_path'])): ?>
         <div style="margin-bottom:10px;">
@@ -124,7 +135,7 @@ $boats = db()->query('SELECT * FROM boats ORDER BY name')->fetchAll();
   <div class="card">
     <h2 style="font-size:1.1rem;">Boats</h2>
     <table>
-      <tr><th>Photo</th><th>Name</th><th>Status</th><th></th></tr>
+      <tr><th>Photo</th><th>Name</th><th>Code</th><th>Status</th><th></th></tr>
       <?php foreach ($boats as $b): ?>
       <tr>
         <td>
@@ -135,6 +146,7 @@ $boats = db()->query('SELECT * FROM boats ORDER BY name')->fetchAll();
           <?php endif; ?>
         </td>
         <td><?= e($b['name']) ?></td>
+        <td style="font-family:var(--mono);"><?= e($b['code'] ?? '—') ?></td>
         <td><?= $b['is_active'] ? 'Active' : 'Hidden' ?></td>
         <td style="white-space:nowrap;">
           <a href="/admin/boats.php?edit=<?= (int)$b['id'] ?>" class="btn" style="background:var(--foam-dim); font-size:0.7rem; padding:6px 10px;">Edit</a>

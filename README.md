@@ -172,14 +172,24 @@ most Hostinger plans don't include SSH by default:
 - **Cart**: session-based (no visitor accounts). Set pickup/delivery +
   clean/cook once and apply to every item in the cart with a clear warning
   about what that does, or override any single item afterward
-- **SKU per catch**: every posted fish gets a unique SKU (`CAP-000123`,
-  derived from its own database ID, so uniqueness is free) the moment a
-  captain posts it. Shown on the captain's postings table, the shop PLP,
-  cart, and checkout — and stored directly on `orders.sku` too
-  (denormalized on purpose) so future automation/fulfillment tooling can
-  query by SKU without a join. Captains can print a label per fish
-  (species, weight, SKU, and a QR code encoding the SKU) from
-  `/captain/print-label.php?id=X`, linked from the postings table.
+- **SKU per catch**: format is `{BOAT-CODE}-{YYMMDD}-{sequence}`, e.g.
+  `TN2-260722-01` — meaningful, not just unique. The sequence counts
+  across ALL of that boat's trips on that calendar day (not just one
+  trip), specifically to avoid two same-day trips both starting at `01`
+  and colliding. Boat codes are set in **Boats** admin (2-10
+  letters/numbers, unique). Shown on the captain's postings table, the
+  shop PLP, cart, checkout, and stored directly on `orders.sku` too
+  (denormalized on purpose) so fulfillment tooling can query by SKU
+  without a join. Captains can print a label per fish (species, weight,
+  SKU, QR code) from `/captain/print-label.php?id=X`. Older catches
+  posted before this format existed keep their original `CAP-000123`
+  style SKU — never retroactively renumbered, since some may already be
+  on printed labels.
+- **Captain order view** (`/captain/orders.php`): shows every order
+  against a captain's own trips for a chosen date (defaults to today),
+  sorted by SKU — built specifically so a captain can match the SKU
+  printed on each fish's label against this list back at the harbor and
+  know immediately what needs pickup, delivery, cleaning, or cooking.
 - **Checkout**: re-verifies stock inside a DB transaction (so two people
   can't both buy the last kilo of grouper), creates an `order_groups`
   receipt plus one `orders` line per fish, decrements remaining stock

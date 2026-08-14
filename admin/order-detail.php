@@ -67,8 +67,15 @@ $lines = $lines->fetchAll();
       <span class="badge badge-<?= $group['status'] === 'fulfilled' ? 'completed' : ($group['status'] === 'live' ? 'live' : 'scheduled') ?>" style="font-size:0.85rem;"><?= e($group['status']) ?></span>
     </div>
 
-    <?php if (!empty($group['zoho_invoice_id'])): ?>
-      <div class="alert alert-success" style="margin-top:14px;">Synced to Zoho Books — Invoice ID <?= e($group['zoho_invoice_id']) ?></div>
+    <?php if (!empty($group['zoho_invoice_id']) && $group['zoho_invoice_delivered']): ?>
+      <div class="alert alert-success" style="margin-top:14px;">Paid — invoice delivered. Zoho Invoice ID <?= e($group['zoho_invoice_id']) ?></div>
+    <?php elseif (!empty($group['zoho_invoice_id'])): ?>
+      <div class="warning-box" style="margin-top:14px;">
+        Awaiting payment — payment link sent via WhatsApp. Zoho Invoice ID <?= e($group['zoho_invoice_id']) ?> (draft, not yet delivered).
+        <?php if (!empty($group['zoho_payment_url'])): ?>
+          <br><a href="<?= e($group['zoho_payment_url']) ?>" target="_blank" rel="noopener" style="color:var(--sky);">View payment link</a>
+        <?php endif; ?>
+      </div>
     <?php elseif (!empty($group['zoho_sync_error'])): ?>
       <div class="alert alert-error" style="margin-top:14px;">Zoho sync failed: <?= e($group['zoho_sync_error']) ?></div>
     <?php endif; ?>

@@ -3,30 +3,24 @@
  * Sends a WhatsApp message via Twilio's REST API directly (no SDK —
  * avoids a composer dependency that may not install cleanly on shared
  * hosting). Uses the "notifications_order_update_template" Quick Reply
- * template (Content SID in TWILIO_WHATSAPP_TEMPLATE_SID) — sandbox mode
- * can't send freeform business-initiated messages, only pre-existing
- * templates, and this is the closest fit available without needing a
- * media URL. Its fixed body is:
+ * template (Content SID in TWILIO_WHATSAPP_TEMPLATE_SID) for every
+ * message type below — sandbox mode can't send freeform
+ * business-initiated messages, only pre-existing templates, and this is
+ * the closest fit available without needing a media URL. Its fixed body:
  *   "Thank you for your order. Your delivery is scheduled for {{date}}
  *    at {{time}}. If you need to change it, please reply back and let
  *    us know."
- * — clunky for a catch alert, but functional. Swap in a
- * purpose-written custom template once a real WhatsApp sender is
- * approved post-launch (see the README backlog note).
+ * — clunky for anything other than an actual delivery notice, but
+ * functional. Swap in purpose-written templates once a real WhatsApp
+ * sender is approved post-launch (see the README backlog note).
  *
  * Returns ['success' => bool, 'message_sid' => ?string, 'error' => ?string]
  */
-function send_whatsapp_catch_alert(string $toPhone, string $speciesName, string $weightKg, string $sku): array
+function send_whatsapp_template_message(string $toPhone, string $dateVar, string $timeVar): array
 {
     $url = 'https://api.twilio.com/2010-04-01/Accounts/' . TWILIO_ACCOUNT_SID . '/Messages.json';
 
-    // Stretching this order-delivery template to fit a catch alert:
-    // {{date}} carries the "what" (species/weight/SKU), {{time}} carries
-    // the "where" (a link back to the shop).
-    $contentVariables = json_encode([
-        'date' => "{$speciesName} ({$weightKg}kg) — SKU {$sku}",
-        'time' => 'shop.capitony.live',
-    ]);
+    $contentVariables = json_encode(['date' => $dateVar, 'time' => $timeVar]);
 
     $postFields = http_build_query([
         'To' => 'whatsapp:' . $toPhone,
@@ -63,6 +57,37 @@ function send_whatsapp_catch_alert(string $toPhone, string $speciesName, string 
         'message_sid' => null,
         'error' => $data['message'] ?? "Twilio returned HTTP {$httpCode}",
     ];
+}
+
+function send_whatsapp_catch_alert(string $toPhone, string $speciesName, string $weightKg, string $sku): array
+{
+    // {{date}} carries the "what" (species/weight/SKU), {{time}} carries
+    // the "where" (a link back to the shop).
+    return send_whatsapp_template_message(
+        $toPhone,
+        "{$speciesName} ({$weightKg}kg) — SKU {$sku}",
+        'shop.capitony.live'
+    );
+}
+
+/** Step 1 of the payment flow: sends the customer their invoice's payment link. */
+function send_whatsapp_payment_link(string $toPhone, float $totalAed, string $paymentUrl, int $orderGroupId): array
+{
+    return send_whatsapp_template_message(
+        $toPhone,
+        "Capitony Order #{$orderGroupId} — AED " . number_format($totalAed, 2),
+        $paymentUrl
+    );
+}
+
+/** Step 2 of the payment flow: confirms payment received once Zoho shows the invoice as paid. */
+function send_whatsapp_payment_confirmed(string $toPhone, float $totalAed, int $orderGroupId): array
+{
+    return send_whatsapp_template_message(
+        $toPhone,
+        "Payment received for Order #{$orderGroupId} — AED " . number_format($totalAed, 2),
+        'Your invoice is on its way by email. Thank you!'
+    );
 }
 
 /**

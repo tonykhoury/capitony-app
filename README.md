@@ -78,28 +78,41 @@ anything from them.
   all of that. A full custom build (auto-publish uploads + webhook-based
   comment sync) was researched and deliberately not pursued; git history
   around this decision has the design notes if it's ever revisited.
-- **Zoho Books invoice automation**: fires when an order is marked
-  **"confirmed"** — not at checkout/order placement. An order existing
-  isn't the same as it being reviewed and accepted, so invoicing waits
-  for a human (admin, via `/admin/orders.php` or `/admin/order-detail.php`,
-  or the captain via `/captain/orders.php`) to actually confirm it first.
-  Runs outside any DB transaction deliberately, since it's an external
-  network call and the status change must stick regardless of whether
-  Zoho is reachable. Uses a **Self Client** (Zoho's recommended pattern
-  for a backend job acting on your own account, no live user present)
-  with the Authorization Code flow — this matters because the
-  alternative Client Credentials flow doesn't issue a refresh token at
-  all. Matches or creates a Zoho contact by email, then creates an
-  invoice with ad-hoc line items (fish + clean/cook fees + delivery, no
-  pre-mapped item catalog needed). `order_groups.zoho_invoice_id` tracks
-  what's synced (idempotent — a retry, or confirming twice, never
-  double-invoices); `zoho_sync_error` captures the reason on failure,
-  both visible on the admin order detail page. Silently does nothing if
-  `ZOHO_CLIENT_ID` is still the placeholder value, so it's safe to
-  deploy before setup is finished. Access tokens are minted fresh from
-  the refresh token on every call rather than cached — order volume is
-  nowhere near frequent enough to justify the added complexity of
-  expiry tracking.
+- **Zoho Books invoice automation — PAYMENT LINK FIRST**: fires when an
+  order is marked **"confirmed"** (admin or captain), not at checkout.
+  Reversed from the original design on purpose: **the real invoice is
+  never sent up front.** Instead:
+  1. A **draft** invoice is created in Zoho (never auto-emailed at this
+     stage) and its own hosted payment-page URL is sent to the customer
+     via WhatsApp — `order_groups.zoho_payment_url`.
+  2. `scripts/zoho-payment-poll.php` (CLI-only, meant to run every ~15
+     min via **Hostinger's Cron Jobs feature** — hPanel → Advanced →
+     Cron Jobs) checks every order still awaiting payment. The moment
+     Zoho shows an invoice as `paid`, it triggers Zoho to actually
+     **email the real invoice**, flips `zoho_invoice_delivered`, and
+     sends a WhatsApp payment confirmation.
+  - **Polling, not a webhook** — Zoho's webhook support for Books
+    specifically is genuinely unclear from current public docs (sources
+    conflict); polling is what we can be certain works. Revisit with a
+    webhook later only if confirmed reliable in testing.
+  - **Unverified field name, flagged deliberately**: the exact Zoho API
+    field for an invoice's payment-page URL couldn't be confirmed
+    without live access to a real response. The code tries the most
+    likely field name and falls back to storing the full raw response in
+    `zoho_raw_response` — check that column after the first real test
+    order if the WhatsApp link doesn't show up, same troubleshooting
+    pattern that resolved the WhatsApp template fields earlier.
+  - Uses a **Self Client** (Zoho's recommended pattern for a backend job
+    acting on your own account, no live user present) with the
+    Authorization Code flow — the alternative Client Credentials flow
+    doesn't issue a refresh token at all.
+  - Matches or creates a Zoho contact by email, then the draft invoice
+    uses ad-hoc line items (fish + clean/cook fees + delivery, no
+    pre-mapped item catalog needed).
+  - Idempotent throughout — a retry, or confirming twice, never
+    double-invoices or double-sends the payment link.
+  - Silently does nothing if `ZOHO_CLIENT_ID` is still the placeholder
+    value, so it's safe to deploy before setup is finished.
 - **Captain order confirmation**: `/captain/orders.php` was previously
   view-only; captains can now confirm an order (verified server-side
   against their own trips before allowing it, never trusting a
@@ -173,6 +186,17 @@ most Hostinger plans don't include SSH by default:
 3. Paste into phpMyAdmin's SQL tab and click **Go**
 4. If a statement errors with "duplicate column" or "table already exists,"
    that piece already applied — safe to ignore and continue with the rest
+
+## Setup — scheduled tasks (Hostinger Cron Jobs)
+
+`scripts/zoho-payment-poll.php` needs to run automatically on a schedule
+for the payment-link-first Zoho flow to actually deliver invoices once
+paid. In hPanel → Advanced → **Cron Jobs**, add a new job:
+- **Command**: `php /home/YOUR_USERNAME/domains/capitony.live/public_html/scripts/zoho-payment-poll.php`
+  (adjust the path to match your actual account username/domain path)
+- **Frequency**: every 15 minutes is reasonable — frequent enough that
+  customers aren't waiting long after paying, not so frequent it wastes
+  API calls checking orders that haven't changed
 
 ## What's wired up
 

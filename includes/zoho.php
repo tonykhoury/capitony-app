@@ -1,15 +1,21 @@
 <?php
 /**
- * Zoho Books invoicing integration. Zoho has no programmatic webhook
- * subscription, so this runs the other direction — we push to Zoho right
- * after a checkout completes, rather than Zoho pushing to us.
+ * Zoho Books integration — REVERSED flow (as of the payment-link redesign):
+ * on order confirmation we create the invoice as a DRAFT and send the
+ * customer only its payment link via WhatsApp. The actual invoice
+ * document is only delivered once payment is confirmed. Detecting
+ * payment uses polling rather than a webhook — Zoho's webhook support
+ * for Books specifically is genuinely unclear from current public docs
+ * (sources conflict), so polling is the mechanism we can be certain
+ * works; revisit with a webhook later if it's confirmed reliable.
  *
- * Deliberately simple token handling: mints a fresh access token from the
- * refresh token on every call rather than caching one. Access tokens are
- * cheap to mint and last an hour, but order volume here is low enough
- * (nowhere near per-second) that caching would add complexity for no
- * real benefit — if that ever changes, revisit with a cached token
- * stored in the settings table with an expiry check.
+ * IMPORTANT UNVERIFIED ASSUMPTION: the exact field name Zoho uses for
+ * an invoice's own hosted payment-page URL isn't something I could
+ * verify without live access to a real API response. The code below
+ * tries the most likely field name and falls back to storing the full
+ * raw response in zoho_raw_response so this can be confirmed and fixed
+ * in one pass, the same way we nailed down the WhatsApp template fields
+ * earlier — check that column after the first real test order.
  */
 
 function zoho_get_access_token(): ?string
@@ -57,7 +63,7 @@ function zoho_api_call(string $method, string $path, ?array $body, string $acces
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    return ['http_code' => $httpCode, 'data' => json_decode($response, true)];
+    return ['http_code' => $httpCode, 'data' => json_decode($response, true), 'raw' => $response];
 }
 
 /** Finds an existing Zoho contact by email, or creates one. Returns contact_id. */
@@ -78,15 +84,11 @@ function zoho_find_or_create_contact(string $accessToken, string $name, string $
 }
 
 /**
- * Creates a Zoho Books invoice for a completed order. Non-blocking by
- * design — every call site wraps this in a try/catch (or it catches
- * internally) so a Zoho outage or misconfiguration never breaks checkout
- * itself. Uses ad-hoc line items (description/rate/quantity) rather than
- * pre-mapping every species into Zoho's item catalog — simpler, and
- * avoids needing to keep two catalogs in sync.
- *
- * Idempotent: does nothing if this order_group already has a
- * zoho_invoice_id, so a retry never creates a duplicate invoice.
+ * Step 1 of the reversed flow: creates a DRAFT invoice (never emailed by
+ * Zoho at this point) and sends the customer its payment link via
+ * WhatsApp. Idempotent — does nothing if this order_group already has a
+ * zoho_invoice_id, so a retry never creates a duplicate invoice or
+ * resends the link.
  */
 function sync_order_to_zoho(int $orderGroupId): void
 {
@@ -144,6 +146,9 @@ function sync_order_to_zoho(int $orderGroupId): void
             $lineItems[] = ['name' => 'Delivery', 'rate' => (float)$group['delivery_fee_aed'], 'quantity' => 1];
         }
 
+        // Deliberately no 'send' flag — invoices are created as drafts by
+        // default via the API, which is exactly what we want: nothing
+        // reaches the customer from Zoho directly at this stage.
         $invoice = zoho_api_call('POST', '/invoices', [
             'customer_id' => $contactId,
             'line_items' => $lineItems,
@@ -152,13 +157,27 @@ function sync_order_to_zoho(int $orderGroupId): void
 
         $invoiceId = $invoice['data']['invoice']['invoice_id'] ?? null;
 
-        if ($invoiceId) {
-            $pdo->prepare('UPDATE order_groups SET zoho_invoice_id = ?, zoho_sync_error = NULL WHERE id = ?')
-                ->execute([$invoiceId, $orderGroupId]);
-        } else {
+        if (!$invoiceId) {
             $errorMsg = $invoice['data']['message'] ?? 'Unknown Zoho error';
-            $pdo->prepare('UPDATE order_groups SET zoho_sync_error = ? WHERE id = ?')
-                ->execute([substr($errorMsg, 0, 255), $orderGroupId]);
+            $pdo->prepare('UPDATE order_groups SET zoho_sync_error = ?, zoho_raw_response = ? WHERE id = ?')
+                ->execute([substr($errorMsg, 0, 255), $invoice['raw'], $orderGroupId]);
+            return;
+        }
+
+        // Best-guess field name for the invoice's own hosted payment page —
+        // see the file-level comment above. Falls back to storing the raw
+        // response so the correct field can be confirmed after a real test.
+        $paymentUrl = $invoice['data']['invoice']['invoice_url']
+            ?? $invoice['data']['invoice']['payment_url']
+            ?? null;
+
+        $pdo->prepare('UPDATE order_groups SET zoho_invoice_id = ?, zoho_payment_url = ?, zoho_sync_error = NULL, zoho_raw_response = ? WHERE id = ?')
+            ->execute([$invoiceId, $paymentUrl, $paymentUrl ? null : $invoice['raw'], $orderGroupId]);
+
+        if ($paymentUrl) {
+            send_whatsapp_payment_link($group['visitor_phone'], $group['total_price_aed'], $paymentUrl, $orderGroupId);
+        } else {
+            error_log("Zoho invoice {$invoiceId} created for order_group {$orderGroupId} but no payment URL field found — check zoho_raw_response to identify the correct field name.");
         }
     } catch (Throwable $e) {
         error_log('sync_order_to_zoho failed for order_group ' . $orderGroupId . ': ' . $e->getMessage());
@@ -166,7 +185,57 @@ function sync_order_to_zoho(int $orderGroupId): void
             db()->prepare('UPDATE order_groups SET zoho_sync_error = ? WHERE id = ?')
                 ->execute([substr($e->getMessage(), 0, 255), $orderGroupId]);
         } catch (Throwable $inner) {
-            // Even the error-logging failed — give up silently, checkout must not break either way.
+            // Even the error-logging failed — give up silently, must not break the caller either way.
+        }
+    }
+}
+
+/**
+ * Step 2 of the reversed flow: checks every order still awaiting payment,
+ * and once Zoho shows the invoice as paid, actually delivers it (emails
+ * it via Zoho) and confirms to the customer via WhatsApp. Meant to be
+ * run on a schedule (see scripts/zoho-payment-poll.php) — Hostinger's
+ * Cron Jobs feature can call that script every 15 minutes or so.
+ */
+function zoho_poll_and_deliver_paid_invoices(): void
+{
+    $pdo = db();
+
+    $pending = $pdo->query(
+        "SELECT id, zoho_invoice_id, visitor_phone, total_price_aed
+         FROM order_groups
+         WHERE zoho_invoice_id IS NOT NULL AND zoho_invoice_delivered = 0"
+    )->fetchAll();
+
+    if (!$pending) {
+        return;
+    }
+
+    $accessToken = zoho_get_access_token();
+    if (!$accessToken) {
+        error_log('zoho_poll_and_deliver_paid_invoices: could not obtain access token.');
+        return;
+    }
+
+    foreach ($pending as $row) {
+        try {
+            $check = zoho_api_call('GET', '/invoices/' . $row['zoho_invoice_id'], null, $accessToken);
+            $status = $check['data']['invoice']['status'] ?? null;
+
+            if ($status !== 'paid') {
+                continue; // still waiting — check again next run
+            }
+
+            // Actually deliver the invoice now that it's paid. Zoho's
+            // invoice email endpoint:
+            zoho_api_call('POST', '/invoices/' . $row['zoho_invoice_id'] . '/email', [], $accessToken);
+
+            $pdo->prepare('UPDATE order_groups SET zoho_invoice_delivered = 1 WHERE id = ?')
+                ->execute([$row['id']]);
+
+            send_whatsapp_payment_confirmed($row['visitor_phone'], $row['total_price_aed'], $row['id']);
+        } catch (Throwable $e) {
+            error_log('zoho_poll_and_deliver_paid_invoices failed for order_group ' . $row['id'] . ': ' . $e->getMessage());
         }
     }
 }

@@ -258,6 +258,20 @@ paid. In hPanel → Advanced → **Cron Jobs**, add a new job:
   count). Seats remaining accounts for pending *and* confirmed requests,
   so the site never shows more availability than actually exists. Admin
   manages incoming requests (confirm/decline) at `/admin/trip-requests.php`.
+- **Icebreaker roster (consent-gated)**: the trip request form also
+  collects optional hobbies, fishing style, years of experience, and
+  countries fished. A clearly-worded, standalone consent checkbox
+  (unchecked by default — never assumed) controls whether that info +
+  name gets shared with *other* confirmed guests on the same trip;
+  leaving it unchecked never blocks joining the trip itself, it just
+  excludes that person from what fellow guests see. Admin triggers
+  **Send Roster** per trip once enough people are confirmed — generates
+  a per-trip token (`trips.roster_token`), builds `/trip-roster.php?token=...`
+  (shows only confirmed *and* consenting attendees, never anyone else),
+  and sends each of them just the link via WhatsApp — same "send a link,
+  not the content" pattern as catch alerts and payment links, and a much
+  better fit than trying to cram a multi-person roster into WhatsApp's
+  2-variable template constraint.
 - **Visitor shop**: browse live catch listings with photos and Arabic
   names, add to cart with a quantity
 - **Cart**: session-based (no visitor accounts). Set pickup/delivery +

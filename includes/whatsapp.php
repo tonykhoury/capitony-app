@@ -90,6 +90,16 @@ function send_whatsapp_payment_confirmed(string $toPhone, float $totalAed, int $
     );
 }
 
+/** Sends a confirmed, consenting attendee a link to the trip roster page. */
+function send_whatsapp_roster_link(string $toPhone, string $tripLabel, string $rosterUrl): array
+{
+    return send_whatsapp_template_message(
+        $toPhone,
+        "Meet your fellow anglers — {$tripLabel}",
+        $rosterUrl
+    );
+}
+
 /**
  * Finds active alerts matching a newly posted catch and sends WhatsApp
  * notifications, logging every attempt (success or failure) to

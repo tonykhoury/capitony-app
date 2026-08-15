@@ -11,6 +11,11 @@ if (is_post()) {
     $phone = normalize_phone($_POST['visitor_phone'] ?? '');
     $email = trim($_POST['visitor_email'] ?? '');
     $seats = max(1, (int)($_POST['seats_requested'] ?? 1));
+    $hobbies = trim($_POST['hobbies'] ?? '');
+    $fishingStyle = trim($_POST['fishing_style'] ?? '');
+    $yearsExperience = trim($_POST['years_experience'] ?? '');
+    $countriesFished = trim($_POST['countries_fished'] ?? '');
+    $shareConsent = isset($_POST['share_consent']) ? 1 : 0;
 
     $trip = db()->prepare("SELECT * FROM trips WHERE id = ? AND status = 'scheduled'");
     $trip->execute([$tripId]);
@@ -32,8 +37,13 @@ if (is_post()) {
         $error = "Only {$remaining} seat" . ($remaining === 1 ? '' : 's') . " left on that trip.";
     } else {
         db()->prepare(
-            'INSERT INTO trip_requests (trip_id, visitor_name, visitor_phone, visitor_email, seats_requested) VALUES (?, ?, ?, ?, ?)'
-        )->execute([$tripId, $name, $phone, $email, $seats]);
+            'INSERT INTO trip_requests (trip_id, visitor_name, visitor_phone, visitor_email, seats_requested,
+                hobbies, fishing_style, years_experience, countries_fished, share_consent)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            $tripId, $name, $phone, $email, $seats,
+            $hobbies ?: null, $fishingStyle ?: null, $yearsExperience ?: null, $countriesFished ?: null, $shareConsent,
+        ]);
         $requested = true;
         flash('success', "Request sent — we'll confirm by WhatsApp or call before the trip.");
         redirect('/trips.php');
@@ -105,6 +115,24 @@ require __DIR__ . '/includes/public-header.php';
               <input type="tel" id="phone_<?= (int)$t['id'] ?>" name="visitor_phone" required placeholder="+971...">
               <label for="seats_<?= (int)$t['id'] ?>">Seats</label>
               <input type="number" id="seats_<?= (int)$t['id'] ?>" name="seats_requested" value="1" min="1" max="<?= $remaining ?>" required>
+
+              <h4 style="font-size:0.82rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--mist); margin:16px 0 8px;">Tell your future shipmates about yourself (optional)</h4>
+              <label for="hobbies_<?= (int)$t['id'] ?>">Hobbies</label>
+              <input type="text" id="hobbies_<?= (int)$t['id'] ?>" name="hobbies" placeholder="e.g. diving, photography, cooking">
+              <label for="fishing_style_<?= (int)$t['id'] ?>">Fishing style</label>
+              <input type="text" id="fishing_style_<?= (int)$t['id'] ?>" name="fishing_style" placeholder="e.g. jigging, popping, bottom fishing">
+              <label for="years_experience_<?= (int)$t['id'] ?>">Years of fishing experience</label>
+              <input type="text" id="years_experience_<?= (int)$t['id'] ?>" name="years_experience" placeholder="e.g. 5 years, or new to it">
+              <label for="countries_fished_<?= (int)$t['id'] ?>">Countries you've fished in</label>
+              <input type="text" id="countries_fished_<?= (int)$t['id'] ?>" name="countries_fished" placeholder="e.g. UAE, Oman, Maldives">
+
+              <div class="warning-box" style="margin-top:10px;">
+                <label style="display:flex; align-items:flex-start; gap:8px; font-family:var(--body); font-size:0.85rem; text-transform:none; letter-spacing:0; margin:0;">
+                  <input type="checkbox" name="share_consent" style="width:auto; margin-top:3px;">
+                  <span>I agree to share my <strong>name and the details above</strong> with other confirmed guests on this same trip, so everyone can get acquainted before we set sail. Nothing is shared if I leave this unchecked — I'll still be welcome on the trip either way.</span>
+                </label>
+              </div>
+
               <button type="submit" class="btn btn-sun btn-block">Request to Join</button>
             </form>
           <?php endif; ?>

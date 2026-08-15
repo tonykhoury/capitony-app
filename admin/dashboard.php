@@ -15,6 +15,13 @@ $upcoming = db()->query(
 $liveNow = db()->query("SELECT COUNT(*) FROM trips WHERE status = 'live'")->fetchColumn();
 $openAlerts = db()->query("SELECT COUNT(*) FROM catch_alerts WHERE is_active = 1")->fetchColumn();
 $pendingOrders = db()->query("SELECT COUNT(*) FROM orders WHERE status = 'pending'")->fetchColumn();
+
+$activeSession = db()->query(
+    "SELECT ls.id, b.name AS boat_name FROM live_sessions ls
+     JOIN trips t ON t.id = ls.trip_id
+     LEFT JOIN boats b ON b.id = t.boat_id
+     WHERE ls.status = 'live' ORDER BY ls.started_at DESC LIMIT 1"
+)->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -38,6 +45,38 @@ $pendingOrders = db()->query("SELECT COUNT(*) FROM orders WHERE status = 'pendin
     <div class="card"><div style="font-family:var(--display); font-size:2rem; color:var(--amber-dark);"><?= (int)$pendingOrders ?></div>Orders awaiting confirmation</div>
     <div class="card"><div style="font-family:var(--display); font-size:2rem; color:var(--amber-dark);"><?= (int)$openAlerts ?></div>Active catch alerts</div>
   </div>
+
+  <?php if ($activeSession): ?>
+  <div class="card" id="liveViewersCard" data-session-id="<?= (int)$activeSession['id'] ?>">
+    <h2 style="font-size:1.1rem;">Who's Watching — <?= e($activeSession['boat_name'] ?? 'Live Trip') ?></h2>
+    <div id="liveViewersContent" style="font-size:0.92rem;">Loading…</div>
+  </div>
+  <script>
+  (function () {
+    var card = document.getElementById('liveViewersCard');
+    var content = document.getElementById('liveViewersContent');
+    var sessionId = card.getAttribute('data-session-id');
+    function refresh() {
+      fetch('/live-viewers-data.php?live_session_id=' + sessionId)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var html = '<strong>' + data.count + '</strong> watching right now';
+          if (data.named && data.named.length) {
+            html += '<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">' +
+              data.named.map(function (n) {
+                return '<span style="background:var(--foam-dim); padding:4px 10px; border-radius:12px; font-size:0.85rem;">' +
+                  n.replace(/</g, '&lt;') + '</span>';
+              }).join('') + '</div>';
+          }
+          content.innerHTML = html;
+        })
+        .catch(function () { content.textContent = 'Could not load viewers.'; });
+    }
+    refresh();
+    setInterval(refresh, 15000);
+  })();
+  </script>
+  <?php endif; ?>
 
   <div class="card">
     <h2 style="font-size:1.1rem;">Upcoming Trips</h2>

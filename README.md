@@ -42,6 +42,19 @@ anything from them.
 - **Root directory**: `public_html` (the default)
 - **Branch**: `main`
 
+- **Live viewer presence**: separate from chat — shows admin/captain a
+  live count and named list of who's actually watching a broadcast right
+  now, so the captain can call people out by name during the stream
+  ("thanks for tuning in, Sarah!"). Deliberately broader than chat
+  participation: any visitor with the live page open counts, not just
+  people who've typed something. Reuses the same visitor-identity cookie
+  as chat (`get_visitor_chat_name()`) — a name set for chat automatically
+  shows up here too, no separate identity system. Visitors heartbeat via
+  `presence-ping.php` every 20 seconds; "active" means seen within the
+  last 60 seconds (`LIVE_VIEWER_ACTIVE_WINDOW_SECONDS`). Shown on both
+  `/captain/chat.php` and the admin dashboard, both polling the shared
+  `/live-viewers-data.php` endpoint (staff-only — checks the session role
+  server-side, never trusts the page it's called from).
 - **Live session chat (visitor ↔ captain, text and voice)**: shown on
   the homepage live player for visitors, and on the captain's
   catch-posting page and dedicated `/captain/chat.php`. Persists for the

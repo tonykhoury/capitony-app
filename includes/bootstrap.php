@@ -22,5 +22,6 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/cart.php';
 require_once __DIR__ . '/whatsapp.php';
 require_once __DIR__ . '/chat.php';
+require_once __DIR__ . '/presence.php';
 require_once __DIR__ . '/customer-auth.php';
 require_once __DIR__ . '/zoho.php';

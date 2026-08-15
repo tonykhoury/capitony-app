@@ -96,6 +96,21 @@ $storedName = $chatIsCaptain ? '' : (get_visitor_chat_name() ?? '');
   poll();
   setInterval(poll, 4000);
 
+  // Presence heartbeat — visitors only, not the captain checking their
+  // own broadcast. Lets admin/captain see who's actually watching right
+  // now, separate from who's actively chatting.
+  if (!isCaptain) {
+    var pingPresence = function () {
+      var fd = new FormData();
+      fd.append('live_session_id', sessionId);
+      var nameEl = document.getElementById('chatSenderName');
+      if (nameEl && nameEl.value.trim()) fd.append('sender_name', nameEl.value.trim());
+      fetch('/presence-ping.php', { method: 'POST', body: fd }).catch(function() {});
+    }
+    pingPresence();
+    setInterval(pingPresence, 20000);
+  }
+
   function getSenderName() {
     if (isCaptain) return null; // server fills this in from the session
     var el = document.getElementById('chatSenderName');

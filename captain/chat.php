@@ -33,6 +33,39 @@ $activeLiveSession = $activeLiveSession->fetch();
 
 <div class="wrap">
   <?php if ($activeLiveSession): ?>
+  <div class="card" id="liveViewersCard" data-session-id="<?= (int)$activeLiveSession['id'] ?>">
+    <h2 style="font-size:1.1rem;">Who's Watching</h2>
+    <p style="color:var(--scale); font-size:0.85rem; margin-top:-8px;">
+      Refreshes automatically — use these names to call people out directly during the broadcast.
+    </p>
+    <div id="liveViewersContent" style="font-size:0.92rem;">Loading…</div>
+  </div>
+  <script>
+  (function () {
+    var card = document.getElementById('liveViewersCard');
+    var content = document.getElementById('liveViewersContent');
+    var sessionId = card.getAttribute('data-session-id');
+    function refresh() {
+      fetch('/live-viewers-data.php?live_session_id=' + sessionId)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var html = '<strong>' + data.count + '</strong> watching right now';
+          if (data.named && data.named.length) {
+            html += '<div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">' +
+              data.named.map(function (n) {
+                return '<span style="background:var(--foam-dim); padding:4px 10px; border-radius:12px; font-size:0.85rem;">' +
+                  n.replace(/</g, '&lt;') + '</span>';
+              }).join('') + '</div>';
+          }
+          content.innerHTML = html;
+        })
+        .catch(function () { content.textContent = 'Could not load viewers.'; });
+    }
+    refresh();
+    setInterval(refresh, 15000);
+  })();
+  </script>
+
   <div class="card">
     <h2 style="font-size:1.1rem;">
       Live Chat

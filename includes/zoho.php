@@ -239,3 +239,135 @@ function zoho_poll_and_deliver_paid_invoices(): void
         }
     }
 }
+
+/**
+ * Fetches the real chart of accounts from Zoho — used to populate the
+ * admin category-mapping dropdowns with actual account names/IDs rather
+ * than requiring someone to dig up raw account IDs manually. Returns
+ * expense-type accounts only (Zoho's chart of accounts includes every
+ * account type — assets, liabilities, etc — most of which are irrelevant
+ * here) plus cash/bank accounts separately for the "paid through" picker.
+ */
+function zoho_get_chart_of_accounts(): array
+{
+    $accessToken = zoho_get_access_token();
+    if (!$accessToken) {
+        return ['expense' => [], 'paid_through' => []];
+    }
+
+    $result = zoho_api_call('GET', '/chartofaccounts', null, $accessToken);
+    $accounts = $result['data']['chartofaccounts'] ?? [];
+
+    $expenseTypes = ['expense', 'cost_of_goods_sold', 'other_expense'];
+    $paidThroughTypes = ['cash', 'bank'];
+
+    $expense = [];
+    $paidThrough = [];
+    foreach ($accounts as $acc) {
+        if (empty($acc['is_active'])) {
+            continue;
+        }
+        if (in_array($acc['account_type'], $expenseTypes, true)) {
+            $expense[] = ['id' => $acc['account_id'], 'name' => $acc['account_name']];
+        } elseif (in_array($acc['account_type'], $paidThroughTypes, true)) {
+            $paidThrough[] = ['id' => $acc['account_id'], 'name' => $acc['account_name']];
+        }
+    }
+
+    return ['expense' => $expense, 'paid_through' => $paidThrough];
+}
+
+/**
+ * Syncs a single captain-logged expense to Zoho Books. Requires the
+ * category's account mapping to already be set in admin (Settings →
+ * Zoho Expense Accounts) — silently records an error rather than
+ * guessing at an account if it's missing, since posting to the wrong
+ * account is worse than not posting at all.
+ */
+function sync_expense_to_zoho(int $expenseId): void
+{
+    try {
+        $pdo = db();
+
+        $expense = $pdo->prepare('SELECT * FROM expenses WHERE id = ?');
+        $expense->execute([$expenseId]);
+        $expense = $expense->fetch();
+
+        if (!$expense || $expense['zoho_expense_id']) {
+            return; // not found, or already synced
+        }
+
+        $accountId = get_setting('zoho_expense_account_' . $expense['category']);
+        $paidThroughId = get_setting('zoho_paid_through_account');
+
+        if (!$accountId || !$paidThroughId) {
+            $pdo->prepare('UPDATE expenses SET zoho_sync_error = ? WHERE id = ?')
+                ->execute(['Zoho account mapping not configured for this category — set it in Admin → Zoho Expense Accounts.', $expenseId]);
+            return;
+        }
+
+        $accessToken = zoho_get_access_token();
+        if (!$accessToken) {
+            throw new RuntimeException('Could not obtain a Zoho access token.');
+        }
+
+        $result = zoho_api_call('POST', '/expenses', [
+            'account_id' => $accountId,
+            'paid_through_account_id' => $paidThroughId,
+            'date' => date('Y-m-d', strtotime($expense['created_at'])),
+            'amount' => (float)$expense['amount_aed'],
+            'reference_number' => 'Capitony Expense #' . $expenseId,
+            'description' => $expense['description'] ?: ucfirst($expense['category']),
+        ], $accessToken);
+
+        $zohoExpenseId = $result['data']['expense']['expense_id'] ?? null;
+
+        if (!$zohoExpenseId) {
+            $errorMsg = $result['data']['message'] ?? 'Unknown Zoho error';
+            $pdo->prepare('UPDATE expenses SET zoho_sync_error = ? WHERE id = ?')
+                ->execute([substr($errorMsg, 0, 255), $expenseId]);
+            return;
+        }
+
+        $pdo->prepare('UPDATE expenses SET zoho_expense_id = ?, zoho_sync_error = NULL WHERE id = ?')
+            ->execute([$zohoExpenseId, $expenseId]);
+
+        // Attach the receipt photo to the Zoho expense too, if one was
+        // uploaded — keeps documentation with the transaction in Zoho
+        // itself, not just on our own server. Best-effort: a failure
+        // here shouldn't undo the successful expense sync above.
+        if ($expense['receipt_photo_path']) {
+            $localPath = UPLOADS_STORAGE_DIR . '/' . ltrim(
+                str_replace('/media.php?f=', '', $expense['receipt_photo_path']), '/'
+            );
+            if (is_file($localPath)) {
+                zoho_upload_expense_receipt($zohoExpenseId, $localPath, $accessToken);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('sync_expense_to_zoho failed for expense ' . $expenseId . ': ' . $e->getMessage());
+        try {
+            db()->prepare('UPDATE expenses SET zoho_sync_error = ? WHERE id = ?')
+                ->execute([substr($e->getMessage(), 0, 255), $expenseId]);
+        } catch (Throwable $inner) {
+            // Give up silently — must not break the caller either way.
+        }
+    }
+}
+
+/** Uploads a receipt image to an already-created Zoho expense. */
+function zoho_upload_expense_receipt(string $zohoExpenseId, string $localFilePath, string $accessToken): void
+{
+    $url = ZOHO_API_DOMAIN . '/books/v3/expenses/' . $zohoExpenseId . '/receipt?organization_id=' . ZOHO_ORGANIZATION_ID;
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => ['receipt_attachment' => new CURLFile($localFilePath)],
+        CURLOPT_HTTPHEADER => ['Authorization: Zoho-oauthtoken ' . $accessToken],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 20,
+    ]);
+    curl_exec($ch);
+    curl_close($ch);
+}

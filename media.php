@@ -12,7 +12,7 @@ $f = $_GET['f'] ?? '';
 
 // Strict allowlist: subfolder must be one of ours, filename must match
 // exactly what the upload handlers generate (24 hex chars + a known extension).
-if (!preg_match('#^(species|boats|catch|gallery|chat-audio)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3|m4a|aac)$#', $f, $m)) {
+if (!preg_match('#^(species|boats|catch|gallery|chat-audio|expense-receipts)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3|m4a|aac)$#', $f, $m)) {
     http_response_code(404);
     exit;
 }

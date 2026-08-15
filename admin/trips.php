@@ -159,7 +159,7 @@ $trips = db()->query(
   <div class="card">
     <h2 style="font-size:1.1rem;">All Trips</h2>
     <table>
-      <tr><th>Departs</th><th>Boat</th><th>Captain</th><th>Seats</th><th>Price</th><th>Status</th><th></th></tr>
+      <tr><th>Departs</th><th>Boat</th><th>Captain</th><th>Seats</th><th>Price</th><th>Engine Hrs</th><th>Status</th><th></th></tr>
       <?php foreach ($trips as $t): ?>
       <tr>
         <td><?= e(date('D, M j · g:i A', strtotime($t['departs_at']))) ?></td>
@@ -167,6 +167,15 @@ $trips = db()->query(
         <td><?= e($t['captain_name'] ?? '— unassigned —') ?></td>
         <td><?= (int)$t['total_seats'] ?></td>
         <td>AED <?= number_format($t['seat_price_aed'], 0) ?></td>
+        <td style="font-family:var(--mono); font-size:0.78rem;">
+          <?php if ($t['start_engine_hours'] !== null && $t['end_engine_hours'] !== null): ?>
+            <?= number_format($t['end_engine_hours'] - $t['start_engine_hours'], 1) ?> hrs used
+          <?php elseif ($t['start_engine_hours'] !== null): ?>
+            started @ <?= e($t['start_engine_hours']) ?>
+          <?php else: ?>
+            —
+          <?php endif; ?>
+        </td>
         <td><span class="badge badge-<?= e($t['status']) ?>"><?= e($t['status']) ?></span></td>
         <td style="white-space:nowrap;">
           <?php if ($t['status'] === 'scheduled'): ?>

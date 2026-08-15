@@ -4,6 +4,7 @@
     <a href="/captain/dashboard.php">My Trips</a>
     <a href="/captain/chat.php">Live Chat</a>
     <a href="/captain/orders.php">My Orders</a>
+    <a href="/captain/expenses.php">Log Expense</a>
     <a href="/captain/change-password.php">Change Password</a>
     <a href="/captain/logout.php">Log Out (<?= e($user['name']) ?>)</a>
   </nav>

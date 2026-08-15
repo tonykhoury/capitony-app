@@ -126,6 +126,27 @@ anything from them.
     double-invoices or double-sends the payment link.
   - Silently does nothing if `ZOHO_CLIENT_ID` is still the placeholder
     value, so it's safe to deploy before setup is finished.
+- **Engine hours tracking**: captain enters starting engine hours when
+  clicking "Start Trip" and ending hours when clicking "Mark Trip
+  Complete" (`trips.start_engine_hours` / `end_engine_hours`, both
+  required to proceed — validates ending hours can't be less than
+  starting). Visible on the captain's live trip card as a running
+  reference, and on `/admin/trips.php` showing total hours used per
+  trip — groundwork for maintenance-interval tracking later.
+- **Captain expense logging + Zoho sync**: `/captain/expenses.php` —
+  fuel/bait/gear/maintenance/other, amount, optional description and
+  receipt photo (same safe-storage upload pattern as everything else).
+  Auto-links to the captain's current live trip if there is one.
+  Syncs to Zoho Books as a real Expense record immediately on logging.
+  **Account mapping is fetched live from Zoho's own Chart of Accounts**
+  (`/admin/zoho-expense-settings.php`) rather than requiring anyone to
+  dig up raw account IDs — admin picks real account names from a
+  dropdown, one per category, plus a single "paid through" account
+  (e.g. Cash or Petty Cash). Won't sync until that mapping exists —
+  fails with a clear, specific error rather than guessing at an account,
+  since posting to the wrong one is worse than not posting. Receipt
+  photos get attached to the Zoho expense too, best-effort. Full
+  overview with sync status and manual retry at `/admin/expenses.php`.
 - **Captain order confirmation**: `/captain/orders.php` was previously
   view-only; captains can now confirm an order (verified server-side
   against their own trips before allowing it, never trusting a

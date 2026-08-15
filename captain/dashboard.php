@@ -18,7 +18,13 @@ if (is_post()) {
     if (!$trip) {
         $error = 'Trip not found.';
     } elseif ($action === 'start_trip' && $trip['status'] === 'scheduled') {
-        db()->prepare("UPDATE trips SET status = 'live', started_at = NOW() WHERE id = ?")->execute([$tripId]);
+        $startHours = $_POST['start_engine_hours'] ?? '';
+        if ($startHours === '' || !is_numeric($startHours)) {
+            flash('error', 'Enter the starting engine hours before starting the trip.');
+            redirect('/captain/dashboard.php');
+        }
+        db()->prepare("UPDATE trips SET status = 'live', started_at = NOW(), start_engine_hours = ? WHERE id = ?")
+            ->execute([(float)$startHours, $tripId]);
         flash('success', 'Trip started. Safe travels — post the catch as it comes in.');
         redirect('/captain/dashboard.php');
     } elseif ($action === 'go_live' && $trip['status'] === 'live') {
@@ -62,7 +68,17 @@ if (is_post()) {
         flash('success', 'Live session ended.');
         redirect('/captain/dashboard.php');
     } elseif ($action === 'complete_trip' && $trip['status'] === 'live') {
-        db()->prepare("UPDATE trips SET status = 'completed', completed_at = NOW() WHERE id = ?")->execute([$tripId]);
+        $endHours = $_POST['end_engine_hours'] ?? '';
+        if ($endHours === '' || !is_numeric($endHours)) {
+            flash('error', 'Enter the ending engine hours before completing the trip.');
+            redirect('/captain/dashboard.php');
+        }
+        if ($trip['start_engine_hours'] !== null && (float)$endHours < (float)$trip['start_engine_hours']) {
+            flash('error', 'Ending engine hours can\'t be less than the starting reading (' . $trip['start_engine_hours'] . ').');
+            redirect('/captain/dashboard.php');
+        }
+        db()->prepare("UPDATE trips SET status = 'completed', completed_at = NOW(), end_engine_hours = ? WHERE id = ?")
+            ->execute([(float)$endHours, $tripId]);
         flash('success', 'Trip marked complete.');
         redirect('/captain/dashboard.php');
     }
@@ -121,14 +137,21 @@ foreach ($liveSessions->fetchAll() as $ls) {
 
     <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
       <?php if ($trip['status'] === 'scheduled'): ?>
-        <form method="post"><?= csrf_field() ?>
+        <form method="post" style="display:flex; gap:8px; align-items:flex-end;"><?= csrf_field() ?>
           <input type="hidden" name="trip_id" value="<?= (int)$trip['id'] ?>">
           <input type="hidden" name="action" value="start_trip">
+          <div>
+            <label for="start_hours_<?= (int)$trip['id'] ?>" style="font-size:0.75rem;">Starting engine hours</label>
+            <input type="number" id="start_hours_<?= (int)$trip['id'] ?>" name="start_engine_hours" step="0.1" min="0" required style="width:130px;">
+          </div>
           <button type="submit" class="btn btn-amber">Start Trip</button>
         </form>
       <?php endif; ?>
 
       <?php if ($trip['status'] === 'live'): ?>
+        <?php if ($trip['start_engine_hours'] !== null): ?>
+          <span style="font-family:var(--mono); font-size:0.78rem; color:var(--scale); align-self:center;">Started at <?= e($trip['start_engine_hours']) ?> hrs</span>
+        <?php endif; ?>
         <a href="/captain/catch.php?trip_id=<?= (int)$trip['id'] ?>" class="btn" style="background:var(--sky); color:var(--chalk);">Post Catch of the Day</a>
 
         <?php if (isset($liveByTrip[$trip['id']])): ?>
@@ -149,9 +172,13 @@ foreach ($liveSessions->fetchAll() as $ls) {
           </form>
         <?php endif; ?>
 
-        <form method="post"><?= csrf_field() ?>
+        <form method="post" style="display:flex; gap:8px; align-items:flex-end;"><?= csrf_field() ?>
           <input type="hidden" name="trip_id" value="<?= (int)$trip['id'] ?>">
           <input type="hidden" name="action" value="complete_trip">
+          <div>
+            <label for="end_hours_<?= (int)$trip['id'] ?>" style="font-size:0.75rem;">Ending engine hours</label>
+            <input type="number" id="end_hours_<?= (int)$trip['id'] ?>" name="end_engine_hours" step="0.1" min="0" required style="width:130px;">
+          </div>
           <button type="submit" class="btn" style="background:var(--foam-dim);">Mark Trip Complete</button>
         </form>
       <?php endif; ?>

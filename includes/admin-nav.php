@@ -7,6 +7,7 @@
     <a href="/admin/chat-history.php">Chat History</a>
     <a href="/admin/customers.php">Customers</a>
     <a href="/admin/orders.php">Orders</a>
+    <a href="/admin/expenses.php">Expenses</a>
     <a href="/admin/change-password.php">Change Password</a>
     <a href="/admin/metrics.php">Metrics</a>
     <a href="/admin/species.php">Species & Pricing</a>

@@ -274,7 +274,7 @@ function delete_uploaded_image(?string $webPath): void
     }
     $f = substr($webPath, strlen('/media.php?f='));
     // Same allowlist as media.php — never trust a stored path blindly before unlinking.
-    if (!preg_match('#^(species|boats|catch|gallery|chat-audio)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3|m4a|aac)$#', $f)) {
+    if (!preg_match('#^(species|boats|catch|gallery|chat-audio|expense-receipts)/[a-f0-9]{24}\.(jpg|mp4|mov|webm|ogg|mp3|m4a|aac)$#', $f)) {
         return;
     }
     $fullPath = UPLOADS_STORAGE_DIR . '/' . $f;

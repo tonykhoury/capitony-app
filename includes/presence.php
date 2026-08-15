@@ -24,10 +24,14 @@ function get_or_create_viewer_token(): string
 function record_viewer_presence(int $liveSessionId, ?string $visitorName): void
 {
     $token = get_or_create_viewer_token();
+    // MariaDB (what Hostinger actually runs) doesn't support MySQL 8's
+    // newer "AS alias" upsert syntax — the older VALUES() function is
+    // deprecated in recent MySQL but remains the only form that works
+    // across both, so it's the right choice here regardless.
     db()->prepare(
         'INSERT INTO live_viewers (live_session_id, session_token, visitor_name, last_seen_at)
-         VALUES (?, ?, ?, NOW()) AS new_row
-         ON DUPLICATE KEY UPDATE last_seen_at = NOW(), visitor_name = COALESCE(new_row.visitor_name, visitor_name)'
+         VALUES (?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE last_seen_at = NOW(), visitor_name = COALESCE(VALUES(visitor_name), visitor_name)'
     )->execute([$liveSessionId, $token, $visitorName ?: null]);
 }
 

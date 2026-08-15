@@ -23,9 +23,28 @@ if (is_post()) {
             flash('error', 'Enter the starting engine hours before starting the trip.');
             redirect('/captain/dashboard.php');
         }
+
         db()->prepare("UPDATE trips SET status = 'live', started_at = NOW(), start_engine_hours = ? WHERE id = ?")
             ->execute([(float)$startHours, $tripId]);
-        flash('success', 'Trip started. Safe travels — post the catch as it comes in.');
+
+        // Engine hours only ever go up over the life of the engine —
+        // warn (don't block) if this reading is lower than the same
+        // boat's last recorded ending hours, since that usually means a
+        // typo, but occasionally has a real explanation (meter replaced,
+        // etc), so it shouldn't stop the captain from starting the trip.
+        $lastEnd = db()->prepare(
+            "SELECT end_engine_hours FROM trips
+             WHERE boat_id = ? AND id != ? AND end_engine_hours IS NOT NULL
+             ORDER BY completed_at DESC LIMIT 1"
+        );
+        $lastEnd->execute([$trip['boat_id'], $tripId]);
+        $lastEnd = $lastEnd->fetchColumn();
+
+        if ($lastEnd !== false && (float)$startHours < (float)$lastEnd) {
+            flash('error', "Trip started, but heads up: {$startHours} hrs is LESS than this boat's last recorded ending hours ({$lastEnd} hrs). Double-check the reading if that doesn't look right.");
+        } else {
+            flash('success', 'Trip started. Safe travels — post the catch as it comes in.');
+        }
         redirect('/captain/dashboard.php');
     } elseif ($action === 'go_live' && $trip['status'] === 'live') {
         // Video is now live via a dedicated streaming VPS (see
@@ -117,6 +136,7 @@ foreach ($liveSessions->fetchAll() as $ls) {
 
 <div class="wrap">
   <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>
+  <?php if ($msg = flash('error')): ?><div class="alert alert-error"><?= e($msg) ?></div><?php endif; ?>
   <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
   <?php if (!$trips): ?>

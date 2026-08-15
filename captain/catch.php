@@ -93,15 +93,7 @@ $catchItems = db()->prepare(
 $catchItems->execute([$tripId]);
 $catchItems = $catchItems->fetchAll();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Post Catch — Capitony Captain</title>
-<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Source+Serif+4&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/app.css">
-</head>
+<?php $pageTitle = 'Post Catch'; require __DIR__ . '/../includes/captain-head.php'; ?>
 <body>
 <?php require __DIR__ . '/../includes/captain-nav.php'; ?>
 
@@ -121,7 +113,8 @@ $catchItems = $catchItems->fetchAll();
 
   <div class="card">
     <h2 style="font-size:1.1rem;">Post to the Catch Board</h2>
-    <form method="post" enctype="multipart/form-data" novalidate>
+    <div id="offlineQueueBadge" style="display:none; background:var(--foam-dim); color:var(--amber-dark); padding:8px 12px; font-size:0.82rem; margin-bottom:10px; border-radius:4px;"></div>
+    <form id="catchPostForm" method="post" enctype="multipart/form-data" novalidate>
       <?= csrf_field() ?>
       <input type="hidden" name="action" value="post_catch">
       <input type="hidden" name="trip_id" value="<?= (int)$tripId ?>">
@@ -215,5 +208,7 @@ function updateCatchTimes() {
 updateCatchTimes();
 setInterval(updateCatchTimes, 30000);
 </script>
+<script src="/assets/js/offline-queue.js"></script>
+<script>enableOfflineQueue('catchPostForm', 'Catch posting');</script>
 </body>
 </html>

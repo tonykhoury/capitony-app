@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offline — Capitony Captain</title>
+<style>
+  body{font-family:sans-serif;background:#10404E;color:#FDFCFA;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;text-align:center;}
+  .box{max-width:360px;}
+  img{width:80px;margin-bottom:20px;opacity:0.9;}
+  button{margin-top:20px;background:#E8A33D;color:#10404E;border:none;padding:12px 24px;font-size:1rem;border-radius:4px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="box">
+  <img src="/assets/img/logo.png" alt="Capitony">
+  <h2>No connection right now</h2>
+  <p>This page needs a signal to load fresh. Anything you've already logged (catches, expenses) that couldn't send will go out automatically once you're back online.</p>
+  <button onclick="location.reload()">Try Again</button>
+</div>
+</body>
+</html>

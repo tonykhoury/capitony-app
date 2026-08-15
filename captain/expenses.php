@@ -56,15 +56,7 @@ $myExpenses = db()->prepare(
 $myExpenses->execute([$user['id']]);
 $myExpenses = $myExpenses->fetchAll();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Log Expense — Capitony Captain</title>
-<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Source+Serif+4&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/app.css">
-</head>
+<?php $pageTitle = 'Log Expense'; require __DIR__ . '/../includes/captain-head.php'; ?>
 <body>
 <?php require __DIR__ . '/../includes/captain-nav.php'; ?>
 
@@ -74,7 +66,8 @@ $myExpenses = $myExpenses->fetchAll();
 
   <div class="card">
     <h2 style="font-size:1.1rem;">Log an Expense</h2>
-    <form method="post" enctype="multipart/form-data">
+    <div id="offlineQueueBadge" style="display:none; background:var(--foam-dim); color:var(--amber-dark); padding:8px 12px; font-size:0.82rem; margin-bottom:10px; border-radius:4px;"></div>
+    <form id="expenseForm" method="post" enctype="multipart/form-data">
       <?= csrf_field() ?>
       <label for="category">Category</label>
       <select id="category" name="category" required>
@@ -124,5 +117,7 @@ $myExpenses = $myExpenses->fetchAll();
     </table>
   </div>
 </div>
+<script src="/assets/js/offline-queue.js"></script>
+<script>enableOfflineQueue('expenseForm', 'Expense logging');</script>
 </body>
 </html>

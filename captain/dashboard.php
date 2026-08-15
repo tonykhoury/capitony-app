@@ -122,15 +122,7 @@ foreach ($liveSessions->fetchAll() as $ls) {
     $liveByTrip[$ls['trip_id']] = $ls;
 }
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Trips — Capitony Captain</title>
-<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Source+Serif+4&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/app.css">
-</head>
+<?php $pageTitle = 'My Trips'; require __DIR__ . '/../includes/captain-head.php'; ?>
 <body>
 <?php require __DIR__ . '/../includes/captain-nav.php'; ?>
 

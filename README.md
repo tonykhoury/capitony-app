@@ -133,6 +133,34 @@ anything from them.
   starting). Visible on the captain's live trip card as a running
   reference, and on `/admin/trips.php` showing total hours used per
   trip — groundwork for maintenance-interval tracking later.
+- **Captain PWA**: the captain portal (`/captain/*`) is installable —
+  "Add to Home Screen" gives a real icon, opens full-screen with no
+  browser chrome, and works with basic offline resilience. Scoped
+  deliberately to `/captain/` only, never the public site — the service
+  worker (`captain/sw.js`) lives inside that folder specifically so its
+  browser-enforced scope can't extend beyond it. Network-first for
+  pages (captains want fresh data over stale cache whenever there's a
+  real connection), falling back to `captain/offline.html` if
+  unreachable. **Catch posting and expense logging queue automatically
+  when genuinely offline** (`assets/js/offline-queue.js`, IndexedDB —
+  needed specifically because these forms include photo uploads, and
+  `localStorage` can't hold File objects) — queued items retry
+  automatically once back online, no captain action needed. Honest
+  scope note: this queues when the browser is already known-offline at
+  submit time (the real "no signal at sea" case) — a connection that
+  drops mid-request instead shows the browser's native error rather
+  than queuing gracefully, since handling that properly would mean
+  converting these from traditional server-rendered forms into a JSON
+  API, out of scope for this pass. Also **no true background sync**
+  (queue only flushes while the PWA is actually open) — iOS Safari
+  doesn't support the Background Sync API at all, so building on it
+  would've meant an Android-only feature; this simpler approach works
+  consistently on both platforms instead. Icons generated from the
+  existing logo (`assets/img/pwa/`, both standard and Android maskable
+  variants). The shared login/change-password pages (used by both
+  admin and captain) don't carry the manifest link, to avoid touching
+  the admin side of that shared code — install from `/captain/dashboard.php`
+  after logging in, not from the login screen itself.
 - **Captain expense logging + Zoho sync**: `/captain/expenses.php` —
   fuel/bait/gear/maintenance/other, amount, optional description and
   receipt photo (same safe-storage upload pattern as everything else).

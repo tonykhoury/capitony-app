@@ -1,0 +1,17 @@
+{
+  "name": "Capitony Captain",
+  "short_name": "Capitony",
+  "description": "Captain tools for Capitony — trips, catches, chat, orders, expenses.",
+  "start_url": "/captain/dashboard.php",
+  "scope": "/captain/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F9F6F0",
+  "theme_color": "#10404E",
+  "icons": [
+    { "src": "/assets/img/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/img/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/img/pwa/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/img/pwa/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -75,7 +75,18 @@ $currentPaidThrough = get_setting('zoho_paid_through_account');
       <button type="submit" class="btn btn-amber" style="margin-top:14px;">Save Mapping</button>
     </form>
     <?php elseif (!$error): ?>
-      <p style="color:var(--scale);">No expense-type accounts found in your Zoho chart of accounts.</p>
+      <p style="color:var(--scale);">No accounts matched the expected categories.</p>
+      <?php if (!empty($accounts['seen_types'])): ?>
+      <div class="warning-box">
+        <strong>Diagnostic info</strong> — my code guessed at Zoho's internal category names
+        (<code>expense</code>, <code>cost_of_goods_sold</code>, <code>other_expense</code> for
+        expense accounts; <code>cash</code>, <code>bank</code> for paid-through accounts), and
+        that guess was apparently wrong. Here's what your Zoho account actually returned —
+        share this with me and I'll fix the matching in one pass:
+        <pre style="white-space:pre-wrap; font-size:0.78rem; margin-top:8px;"><?php foreach ($accounts['seen_types'] as $type => $count): ?><?= e($type) ?> (<?= $count ?>)
+<?php endforeach; ?></pre>
+      </div>
+      <?php endif; ?>
     <?php endif; ?>
   </div>
 </div>

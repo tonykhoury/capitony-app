@@ -252,21 +252,28 @@ function zoho_get_chart_of_accounts(): array
 {
     $accessToken = zoho_get_access_token();
     if (!$accessToken) {
-        return ['expense' => [], 'paid_through' => []];
+        return ['expense' => [], 'paid_through' => [], 'raw' => null, 'seen_types' => []];
     }
 
     $result = zoho_api_call('GET', '/chartofaccounts', null, $accessToken);
     $accounts = $result['data']['chartofaccounts'] ?? [];
 
+    // Best-guess account_type values based on Zoho's general docs — not
+    // independently verified against a real response. If this comes back
+    // empty, 'seen_types' below shows every actual type string present in
+    // this account, so the real values can be confirmed and added here in
+    // one pass rather than guessing again.
     $expenseTypes = ['expense', 'cost_of_goods_sold', 'other_expense'];
     $paidThroughTypes = ['cash', 'bank'];
 
     $expense = [];
     $paidThrough = [];
+    $seenTypes = [];
     foreach ($accounts as $acc) {
         if (empty($acc['is_active'])) {
             continue;
         }
+        $seenTypes[$acc['account_type']] = ($seenTypes[$acc['account_type']] ?? 0) + 1;
         if (in_array($acc['account_type'], $expenseTypes, true)) {
             $expense[] = ['id' => $acc['account_id'], 'name' => $acc['account_name']];
         } elseif (in_array($acc['account_type'], $paidThroughTypes, true)) {
@@ -274,7 +281,7 @@ function zoho_get_chart_of_accounts(): array
         }
     }
 
-    return ['expense' => $expense, 'paid_through' => $paidThrough];
+    return ['expense' => $expense, 'paid_through' => $paidThrough, 'raw' => $result['raw'], 'seen_types' => $seenTypes];
 }
 
 /**

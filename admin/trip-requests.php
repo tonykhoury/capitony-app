@@ -31,11 +31,22 @@ if (is_post()) {
             $attendees->execute([$tripId]);
             $attendees = $attendees->fetchAll();
 
+            $sent = 0;
+            $failed = [];
             foreach ($attendees as $a) {
-                send_whatsapp_roster_link($a['visitor_phone'], $tripLabel, $rosterUrl);
+                $result = send_whatsapp_roster_link($a['visitor_phone'], $tripLabel, $rosterUrl);
+                if ($result['success']) {
+                    $sent++;
+                } else {
+                    $failed[] = $a['visitor_phone'] . ' (' . $result['error'] . ')';
+                }
             }
 
-            flash('success', count($attendees) . ' attendee(s) sent the roster link.');
+            if ($failed) {
+                flash('error', "{$sent} sent OK. Failed for: " . implode('; ', $failed));
+            } else {
+                flash('success', "{$sent} attendee(s) sent the roster link.");
+            }
         }
         redirect('/admin/trip-requests.php');
     }
@@ -70,6 +81,7 @@ $requests = db()->query(
 
 <div class="wrap">
   <?php if ($msg = flash('success')): ?><div class="alert alert-success"><?= e($msg) ?></div><?php endif; ?>
+  <?php if ($msg = flash('error')): ?><div class="alert alert-error"><?= e($msg) ?></div><?php endif; ?>
 
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">

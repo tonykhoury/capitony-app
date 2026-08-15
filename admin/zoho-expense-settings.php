@@ -86,6 +86,13 @@ $currentPaidThrough = get_setting('zoho_paid_through_account');
         <pre style="white-space:pre-wrap; font-size:0.78rem; margin-top:8px;"><?php foreach ($accounts['seen_types'] as $type => $count): ?><?= e($type) ?> (<?= $count ?>)
 <?php endforeach; ?></pre>
       </div>
+      <?php else: ?>
+      <div class="warning-box">
+        <strong>Diagnostic info</strong> — zero accounts came back at all (not just zero
+        matches), which points to something more fundamental than a naming mismatch — likely
+        the API call itself being rejected. Here's the raw response Zoho actually sent back:
+        <pre style="white-space:pre-wrap; font-size:0.78rem; margin-top:8px; word-break:break-all;"><?= e($accounts['raw'] ?? '(no response captured)') ?></pre>
+      </div>
       <?php endif; ?>
     <?php endif; ?>
   </div>

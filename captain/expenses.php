@@ -99,7 +99,7 @@ $myExpenses = $myExpenses->fetchAll();
       <?php endif; ?>
 
       <label for="receipt">Receipt photo (optional)</label>
-      <input type="file" id="receipt" name="receipt" accept="image/*">
+      <input type="file" id="receipt" name="receipt" accept="image/*" capture="environment">
 
       <button type="submit" class="btn btn-amber" style="margin-top:12px;">Log Expense</button>
     </form>

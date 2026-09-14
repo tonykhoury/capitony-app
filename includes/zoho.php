@@ -85,18 +85,32 @@ function zoho_find_or_create_contact(string $accessToken, string $name, string $
         return $contactId;
     }
 
-    // Zoho enforces unique contact NAMES, not just unique emails. The
-    // same real person can reach this point with a different email
-    // across two guest orders — the email search above misses their
-    // existing contact, and the create then fails on a name collision.
-    // Fall back to searching by name before giving up, so their orders
-    // consolidate under the one existing contact rather than erroring out.
+    // Zoho enforces unique contact NAMES, not just unique emails, so a
+    // create can fail here even when the email genuinely doesn't match
+    // any existing contact. Only reuse an existing contact if BOTH name
+    // AND email match — safer than a name-only fallback, which risks
+    // merging two different real people who happen to share a name. The
+    // cost: if the same person genuinely used a different email on an
+    // earlier order, this won't auto-resolve it — surfaces as a clear
+    // error for a human to sort out instead, rather than silently
+    // guessing which existing contact to attach the invoice to.
     $errorMsg = $create['data']['message'] ?? '';
     if (stripos($errorMsg, 'already exists') !== false) {
-        $nameSearch = zoho_api_call('GET', '/contacts?contact_name=' . urlencode($name), null, $accessToken);
-        if ($nameSearch['http_code'] === 200 && !empty($nameSearch['data']['contacts'][0]['contact_id'])) {
-            return $nameSearch['data']['contacts'][0]['contact_id'];
+        $combinedSearch = zoho_api_call(
+            'GET',
+            '/contacts?contact_name=' . urlencode($name) . '&email=' . urlencode($email),
+            null,
+            $accessToken
+        );
+        if ($combinedSearch['http_code'] === 200 && !empty($combinedSearch['data']['contacts'][0]['contact_id'])) {
+            return $combinedSearch['data']['contacts'][0]['contact_id'];
         }
+
+        throw new RuntimeException(
+            "A Zoho contact named \"{$name}\" already exists, but with a different email than this order's ({$email}). " .
+            "Won't guess which one to use — please resolve manually in Zoho Books (update the existing contact's email, " .
+            "or rename one of them to disambiguate), then retry the sync."
+        );
     }
 
     throw new RuntimeException("Zoho contact step failed (HTTP {$create['http_code']}): " . ($errorMsg ?: 'Unknown error'));

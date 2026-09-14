@@ -140,7 +140,15 @@ anything from them.
     `ZohoBooks.settings.READ`.
   - Matches or creates a Zoho contact by email, then the invoice uses
     ad-hoc line items (fish + clean/cook fees + delivery, no pre-mapped
-    item catalog needed).
+    item catalog needed). **Zoho enforces unique contact names, not just
+    unique emails** — if the same real person orders again with a
+    different email, the create step can fail on a name collision even
+    though the email search found nothing. Falls back to a combined
+    name+email search (both must match) before giving up; deliberately
+    does NOT fall back to a name-only match, since that risks merging
+    two different real customers who happen to share a name. When
+    neither resolves it, surfaces a specific, actionable error asking a
+    human to disambiguate in Zoho Books, rather than guessing.
   - Idempotent throughout — a retry, or confirming twice, never
     double-invoices or double-sends the payment link.
   - Silently does nothing if `ZOHO_CLIENT_ID` is still the placeholder

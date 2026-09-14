@@ -100,6 +100,16 @@ function send_whatsapp_roster_link(string $toPhone, string $tripLabel, string $r
     );
 }
 
+/** Notifies a captain that payment is confirmed — the explicit signal that fulfillment/delivery can safely proceed. */
+function send_whatsapp_payment_confirmed_to_captain(string $captainPhone, int $orderGroupId, float $totalAed): array
+{
+    return send_whatsapp_template_message(
+        $captainPhone,
+        "PAID — Order #{$orderGroupId} (AED " . number_format($totalAed, 2) . ")",
+        'Safe to proceed with delivery/pickup — check Capitony Orders for details.'
+    );
+}
+
 /**
  * Finds active alerts matching a newly posted catch and sends WhatsApp
  * notifications, logging every attempt (success or failure) to

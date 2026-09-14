@@ -67,11 +67,11 @@ $lines = $lines->fetchAll();
       <span class="badge badge-<?= $group['status'] === 'fulfilled' ? 'completed' : ($group['status'] === 'live' ? 'live' : 'scheduled') ?>" style="font-size:0.85rem;"><?= e($group['status']) ?></span>
     </div>
 
-    <?php if (!empty($group['zoho_invoice_id']) && $group['zoho_invoice_delivered']): ?>
-      <div class="alert alert-success" style="margin-top:14px;">Paid — invoice delivered. Zoho Invoice ID <?= e($group['zoho_invoice_id']) ?></div>
+    <?php if (!empty($group['zoho_payment_confirmed_at'])): ?>
+      <div class="alert alert-success" style="margin-top:14px;">✓ PAID (confirmed <?= e(utc_to_local($group['zoho_payment_confirmed_at'], 'M j, g:i A')) ?>) — safe to proceed with delivery/pickup. Zoho Invoice ID <?= e($group['zoho_invoice_id']) ?></div>
     <?php elseif (!empty($group['zoho_invoice_id'])): ?>
       <div class="warning-box" style="margin-top:14px;">
-        Awaiting payment — payment link sent via WhatsApp. Zoho Invoice ID <?= e($group['zoho_invoice_id']) ?> (draft, not yet delivered).
+        ⚠ AWAITING PAYMENT — invoice sent, payment link delivered via WhatsApp. Do not fulfill until this shows PAID. Zoho Invoice ID <?= e($group['zoho_invoice_id']) ?>.
         <?php if (!empty($group['zoho_payment_url'])): ?>
           <br><a href="<?= e($group['zoho_payment_url']) ?>" target="_blank" rel="noopener" style="color:var(--sky);">View payment link</a>
         <?php endif; ?>
@@ -122,7 +122,10 @@ $lines = $lines->fetchAll();
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <?php foreach (['pending', 'confirmed', 'fulfilled', 'cancelled'] as $s): ?>
         <?php if ($s !== $group['status']): ?>
-        <form method="post">
+        <?php
+          $needsPaymentWarning = $s === 'fulfilled' && !empty($group['zoho_invoice_id']) && empty($group['zoho_payment_confirmed_at']);
+        ?>
+        <form method="post" <?= $needsPaymentWarning ? 'onsubmit="return confirm(\'Payment has NOT been confirmed for this order yet. Mark it fulfilled anyway?\');"' : '' ?>>
           <?= csrf_field() ?>
           <input type="hidden" name="new_status" value="<?= e($s) ?>">
           <button type="submit" class="btn" style="background:<?= $s === 'cancelled' ? 'var(--danger)' : 'var(--amber)' ?>; color:var(--chalk); font-size:0.75rem; padding:9px 16px;">

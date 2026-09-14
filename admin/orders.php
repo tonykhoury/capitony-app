@@ -79,20 +79,29 @@ $counts = db()->query(
     </div>
 
     <table>
-      <tr><th>#</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Placed</th><th></th></tr>
+      <tr><th>#</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Placed</th><th></th></tr>
       <?php foreach ($groups as $g): ?>
       <tr>
         <td>#<?= (int)$g['id'] ?></td>
         <td><?= e($g['visitor_name']) ?><br><span style="font-family:var(--mono); font-size:0.75rem; color:var(--scale);"><?= e($g['visitor_phone']) ?></span></td>
         <td><?= (int)$g['item_count'] ?></td>
         <td>AED <?= number_format($g['total_price_aed'], 2) ?></td>
+        <td>
+          <?php if (!empty($g['zoho_payment_confirmed_at'])): ?>
+            <strong style="color:#2E7D4F; font-size:0.82rem;">✓ PAID</strong>
+          <?php elseif (!empty($g['zoho_invoice_id'])): ?>
+            <strong style="color:#C7842A; font-size:0.82rem;">⚠ AWAITING</strong>
+          <?php else: ?>
+            <span style="color:var(--scale); font-size:0.8rem;">—</span>
+          <?php endif; ?>
+        </td>
         <td><span class="badge badge-<?= $g['status'] === 'fulfilled' ? 'completed' : ($g['status'] === 'confirmed' || $g['status'] === 'pending' ? 'scheduled' : 'live') ?>"><?= e($g['status']) ?></span></td>
         <td style="font-family:var(--mono); font-size:0.78rem;"><?= e(utc_to_local($g['created_at'], 'M j, g:i A')) ?></td>
         <td><a href="/admin/order-detail.php?id=<?= (int)$g['id'] ?>" class="btn" style="background:var(--foam-dim); font-size:0.7rem; padding:6px 10px;">View</a></td>
       </tr>
       <?php endforeach; ?>
       <?php if (!$groups): ?>
-      <tr><td colspan="7" style="color:var(--scale);">No orders here yet.</td></tr>
+      <tr><td colspan="8" style="color:var(--scale);">No orders here yet.</td></tr>
       <?php endif; ?>
     </table>
   </div>

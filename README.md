@@ -91,37 +91,51 @@ anything from them.
   all of that. A full custom build (auto-publish uploads + webhook-based
   comment sync) was researched and deliberately not pursued; git history
   around this decision has the design notes if it's ever revisited.
-- **Zoho Books invoice automation — PAYMENT LINK FIRST**: fires when an
-  order is marked **"confirmed"** (admin or captain), not at checkout.
-  Reversed from the original design on purpose: **the real invoice is
-  never sent up front.** Instead:
-  1. A **draft** invoice is created in Zoho (never auto-emailed at this
-     stage) and its own hosted payment-page URL is sent to the customer
-     via WhatsApp — `order_groups.zoho_payment_url`.
-  2. `scripts/zoho-payment-poll.php` (CLI-only, meant to run every ~15
-     min via **Hostinger's Cron Jobs feature** — hPanel → Advanced →
-     Cron Jobs) checks every order still awaiting payment. The moment
-     Zoho shows an invoice as `paid`, it triggers Zoho to actually
-     **email the real invoice**, flips `zoho_invoice_delivered`, and
-     sends a WhatsApp payment confirmation.
+- **Zoho Books invoice automation, with a payment-confirmation safeguard**:
+  fires when an order is marked **"confirmed"** (admin or captain), not
+  at checkout. Originally designed to hold the invoice as a draft and
+  send only a bare payment link — **corrected after real-world testing**
+  once Zoho's own documentation confirmed a hard platform limitation:
+  *"You cannot generate payment URLs for invoices that are in the Draft
+  status."* No workaround exists for that within Zoho's hosted payment
+  page — a draft invoice's payment link simply doesn't work, no matter
+  what URL is sent. The actual flow now:
+  1. Invoice is created, then **immediately emailed via Zoho** (which is
+     what transitions it out of Draft into a payable state) — the
+     customer gets both a Zoho email and a WhatsApp message with the
+     **working** payment link. The link is re-fetched via a fresh `GET`
+     *after* this transition, not trusted from the draft-time creation
+     response, since that field isn't reliably populated before the
+     invoice is actually sendable.
+  2. `scripts/zoho-payment-poll.php` (CLI, ~every 15 min via **Hostinger
+     Cron Jobs**) checks every order still awaiting payment. Once Zoho
+     shows `paid`, it sets `order_groups.zoho_payment_confirmed_at` —
+     **the single authoritative "safe to fulfill" signal** — and
+     WhatsApps both the customer (payment confirmed) and **every captain
+     whose trip contributed fish to that order** (via `users.phone`,
+     matched through `catch_items` → `trips` → `captain_id`).
+  - **Erroneous-delivery safeguard, shown everywhere staff view
+    orders**: `/captain/orders.php` highlights any unpaid-but-invoiced
+    row with a colored background and an explicit "⚠ AWAITING PAYMENT"
+    / "✓ PAID" label — this is the screen a captain actually uses to
+    sort fish at the harbor, so it's the one place this can't be missed.
+    Same labeling on `/admin/orders.php` and `/admin/order-detail.php`,
+    plus an active confirmation prompt if admin tries to mark an order
+    "fulfilled" while payment hasn't been confirmed yet.
   - **Polling, not a webhook** — Zoho's webhook support for Books
     specifically is genuinely unclear from current public docs (sources
     conflict); polling is what we can be certain works. Revisit with a
     webhook later only if confirmed reliable in testing.
-  - **Unverified field name, flagged deliberately**: the exact Zoho API
-    field for an invoice's payment-page URL couldn't be confirmed
-    without live access to a real response. The code tries the most
-    likely field name and falls back to storing the full raw response in
-    `zoho_raw_response` — check that column after the first real test
-    order if the WhatsApp link doesn't show up, same troubleshooting
-    pattern that resolved the WhatsApp template fields earlier.
   - Uses a **Self Client** (Zoho's recommended pattern for a backend job
     acting on your own account, no live user present) with the
     Authorization Code flow — the alternative Client Credentials flow
-    doesn't issue a refresh token at all.
-  - Matches or creates a Zoho contact by email, then the draft invoice
-    uses ad-hoc line items (fish + clean/cook fees + delivery, no
-    pre-mapped item catalog needed).
+    doesn't issue a refresh token at all. The OAuth scope needed real
+    trial and error to nail down — chart-of-accounts access specifically
+    needs `ZohoBooks.accountants.READ`, not the more intuitively-named
+    `ZohoBooks.settings.READ`.
+  - Matches or creates a Zoho contact by email, then the invoice uses
+    ad-hoc line items (fish + clean/cook fees + delivery, no pre-mapped
+    item catalog needed).
   - Idempotent throughout — a retry, or confirming twice, never
     double-invoices or double-sends the payment link.
   - Silently does nothing if `ZOHO_CLIENT_ID` is still the placeholder

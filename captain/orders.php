@@ -47,10 +47,11 @@ $ordersByTrip = [];
 if ($tripIds) {
     $placeholders = implode(',', array_fill(0, count($tripIds), '?'));
     $stmt = db()->prepare(
-        "SELECT o.*, s.name AS species_name, ci.trip_id
+        "SELECT o.*, s.name AS species_name, ci.trip_id, og.zoho_payment_confirmed_at, og.zoho_invoice_id
          FROM orders o
          JOIN catch_items ci ON ci.id = o.catch_item_id
          JOIN species s ON s.id = ci.species_id
+         JOIN order_groups og ON og.id = o.order_group_id
          WHERE ci.trip_id IN ($placeholders) AND o.status != 'cancelled'
          ORDER BY o.sku ASC"
     );
@@ -92,9 +93,12 @@ if ($tripIds) {
       <p style="color:var(--scale); font-size:0.88rem;">No orders placed against this trip's catch yet.</p>
     <?php else: ?>
     <table>
-      <tr><th>SKU</th><th>Species</th><th>Weight</th><th>Service</th><th>Customer</th><th>Status</th><th></th></tr>
-      <?php foreach ($tripOrders as $o): ?>
-      <tr>
+      <tr><th>SKU</th><th>Species</th><th>Weight</th><th>Service</th><th>Customer</th><th>Payment</th><th>Status</th><th></th></tr>
+      <?php foreach ($tripOrders as $o):
+        $isPaid = !empty($o['zoho_payment_confirmed_at']);
+        $needsPayment = !empty($o['zoho_invoice_id']); // only orders actually invoiced go through the payment-link flow at all
+      ?>
+      <tr<?= (!$isPaid && $needsPayment) ? ' style="background:#FFF3E0;"' : '' ?>>
         <td style="font-family:var(--mono); font-weight:600;"><?= e($o['sku'] ?? '—') ?></td>
         <td><?= e($o['species_name']) ?></td>
         <td><?= number_format($o['quantity_kg'], 1) ?> kg</td>
@@ -104,6 +108,15 @@ if ($tripIds) {
           <?= $o['service_cook'] ? ' + Cook' : '' ?>
         </td>
         <td><?= e($o['visitor_name']) ?><br><span style="font-family:var(--mono); font-size:0.75rem; color:var(--scale);"><?= e($o['visitor_phone']) ?></span></td>
+        <td>
+          <?php if ($isPaid): ?>
+            <strong style="color:#2E7D4F;">✓ PAID</strong>
+          <?php elseif ($needsPayment): ?>
+            <strong style="color:#C7842A;">⚠ AWAITING PAYMENT</strong>
+          <?php else: ?>
+            <span style="color:var(--scale); font-size:0.82rem;">not yet confirmed</span>
+          <?php endif; ?>
+        </td>
         <td><span class="badge badge-<?= $o['status'] === 'fulfilled' ? 'completed' : 'scheduled' ?>"><?= e($o['status']) ?></span></td>
         <td>
           <?php if ($o['status'] === 'pending'): ?>
@@ -117,6 +130,9 @@ if ($tripIds) {
       </tr>
       <?php endforeach; ?>
     </table>
+    <?php if (array_filter($tripOrders, fn($o) => !empty($o['zoho_invoice_id']) && empty($o['zoho_payment_confirmed_at']))): ?>
+      <p style="color:#C7842A; font-size:0.85rem; margin-top:10px;">⚠ One or more orders above are highlighted because payment hasn't been confirmed yet — hold off on delivery/pickup for those until they show PAID.</p>
+    <?php endif; ?>
     <?php endif; ?>
   </div>
   <?php endforeach; ?>

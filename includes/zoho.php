@@ -146,9 +146,8 @@ function sync_order_to_zoho(int $orderGroupId): void
             $lineItems[] = ['name' => 'Delivery', 'rate' => (float)$group['delivery_fee_aed'], 'quantity' => 1];
         }
 
-        // Deliberately no 'send' flag — invoices are created as drafts by
-        // default via the API, which is exactly what we want: nothing
-        // reaches the customer from Zoho directly at this stage.
+        // Deliberately no 'send' flag on creation — Zoho invoices start
+        // as drafts by default via the API either way.
         $invoice = zoho_api_call('POST', '/invoices', [
             'customer_id' => $contactId,
             'line_items' => $lineItems,
@@ -164,20 +163,32 @@ function sync_order_to_zoho(int $orderGroupId): void
             return;
         }
 
-        // Best-guess field name for the invoice's own hosted payment page —
-        // see the file-level comment above. Falls back to storing the raw
-        // response so the correct field can be confirmed after a real test.
-        $paymentUrl = $invoice['data']['invoice']['invoice_url']
-            ?? $invoice['data']['invoice']['payment_url']
+        // CRITICAL: Zoho cannot generate a working payment URL for a draft
+        // invoice at all — confirmed directly from Zoho's own documentation
+        // ("You cannot generate payment URLs for invoices that are in the
+        // Draft status"). Emailing it transitions status to Sent/Open,
+        // which is what actually makes the payment link work — and also
+        // gets the customer a proper emailed copy as a bonus, alongside
+        // the WhatsApp link we send below.
+        zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', [], $accessToken);
+
+        // Re-fetch AFTER the transition rather than trusting the draft-time
+        // creation response — the payment URL field is only meaningfully
+        // populated once the invoice is actually sendable, which is
+        // exactly the bug that caused the first version of this to send a
+        // broken link.
+        $refetched = zoho_api_call('GET', '/invoices/' . $invoiceId, null, $accessToken);
+        $paymentUrl = $refetched['data']['invoice']['invoice_url']
+            ?? $refetched['data']['invoice']['payment_url']
             ?? null;
 
-        $pdo->prepare('UPDATE order_groups SET zoho_invoice_id = ?, zoho_payment_url = ?, zoho_sync_error = NULL, zoho_raw_response = ? WHERE id = ?')
-            ->execute([$invoiceId, $paymentUrl, $paymentUrl ? null : $invoice['raw'], $orderGroupId]);
+        $pdo->prepare('UPDATE order_groups SET zoho_invoice_id = ?, zoho_payment_url = ?, zoho_invoice_delivered = 1, zoho_sync_error = NULL, zoho_raw_response = ? WHERE id = ?')
+            ->execute([$invoiceId, $paymentUrl, $paymentUrl ? null : $refetched['raw'], $orderGroupId]);
 
         if ($paymentUrl) {
             send_whatsapp_payment_link($group['visitor_phone'], $group['total_price_aed'], $paymentUrl, $orderGroupId);
         } else {
-            error_log("Zoho invoice {$invoiceId} created for order_group {$orderGroupId} but no payment URL field found — check zoho_raw_response to identify the correct field name.");
+            error_log("Zoho invoice {$invoiceId} created for order_group {$orderGroupId} but no payment URL field found even after sending — check zoho_raw_response to identify the correct field name.");
         }
     } catch (Throwable $e) {
         error_log('sync_order_to_zoho failed for order_group ' . $orderGroupId . ': ' . $e->getMessage());
@@ -201,10 +212,14 @@ function zoho_poll_and_deliver_paid_invoices(): void
 {
     $pdo = db();
 
+    // Invoices are sent immediately at confirmation time now (see
+    // sync_order_to_zoho) — this poll is purely about detecting payment,
+    // not delivery. zoho_payment_confirmed_at is the authoritative "safe
+    // to fulfill" signal shown to staff everywhere orders are listed.
     $pending = $pdo->query(
         "SELECT id, zoho_invoice_id, visitor_phone, total_price_aed
          FROM order_groups
-         WHERE zoho_invoice_id IS NOT NULL AND zoho_invoice_delivered = 0"
+         WHERE zoho_invoice_id IS NOT NULL AND zoho_payment_confirmed_at IS NULL"
     )->fetchAll();
 
     if (!$pending) {
@@ -226,14 +241,26 @@ function zoho_poll_and_deliver_paid_invoices(): void
                 continue; // still waiting — check again next run
             }
 
-            // Actually deliver the invoice now that it's paid. Zoho's
-            // invoice email endpoint:
-            zoho_api_call('POST', '/invoices/' . $row['zoho_invoice_id'] . '/email', [], $accessToken);
-
-            $pdo->prepare('UPDATE order_groups SET zoho_invoice_delivered = 1 WHERE id = ?')
+            $pdo->prepare('UPDATE order_groups SET zoho_payment_confirmed_at = NOW() WHERE id = ?')
                 ->execute([$row['id']]);
 
             send_whatsapp_payment_confirmed($row['visitor_phone'], $row['total_price_aed'], $row['id']);
+
+            // Notify every captain whose trip contributed fish to this
+            // order — this is the actual safeguard against an erroneous
+            // delivery: fulfillment shouldn't start until the captain
+            // has been told, explicitly, that payment came through.
+            $captains = $pdo->prepare(
+                "SELECT DISTINCT u.phone, u.name FROM orders o
+                 JOIN catch_items ci ON ci.id = o.catch_item_id
+                 JOIN trips t ON t.id = ci.trip_id
+                 JOIN users u ON u.id = t.captain_id
+                 WHERE o.order_group_id = ? AND u.phone IS NOT NULL AND u.phone != ''"
+            );
+            $captains->execute([$row['id']]);
+            foreach ($captains->fetchAll() as $captain) {
+                send_whatsapp_payment_confirmed_to_captain($captain['phone'], $row['id'], $row['total_price_aed']);
+            }
         } catch (Throwable $e) {
             error_log('zoho_poll_and_deliver_paid_invoices failed for order_group ' . $row['id'] . ': ' . $e->getMessage());
         }

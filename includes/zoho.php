@@ -290,7 +290,16 @@ function zoho_finish_invoice_send(PDO $pdo, array $group, string $accessToken): 
     // produces the JSON array "[]", not "{}", which is exactly what
     // caused a genuine, reproducible "JSON is not well formed" error
     // from Zoho for this endpoint. new stdClass() always encodes to "{}".
-    $emailResult = zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', new stdClass(), $accessToken);
+    // Explicitly specify the recipient rather than relying on Zoho to
+    // resolve an email from its own contact record — that resolution
+    // logic proved genuinely fragile across contacts created at
+    // different points in this build (missing contact persons, unclear
+    // whether it falls back to the top-level contact email, etc). We
+    // already have a validated, required email on file for every order
+    // — just tell Zoho directly where to send it.
+    $emailResult = zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', [
+        'to_mail_ids' => [$group['email']],
+    ], $accessToken);
 
     if (($emailResult['data']['code'] ?? -1) !== 0) {
         // This call failing silently (Error 7008 — no contact person —

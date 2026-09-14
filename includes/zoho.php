@@ -132,8 +132,27 @@ function sync_order_to_zoho(int $orderGroupId): void
         $group->execute([$orderGroupId]);
         $group = $group->fetch();
 
-        if (!$group || $group['zoho_invoice_id']) {
-            return; // not found, or already synced — nothing to do
+        if (!$group) {
+            return;
+        }
+
+        if ($group['zoho_invoice_id'] && $group['zoho_payment_url']) {
+            return; // fully synced already — genuinely nothing to do
+        }
+
+        $accessToken = zoho_get_access_token();
+        if (!$accessToken) {
+            throw new RuntimeException('Could not obtain a Zoho access token.');
+        }
+
+        // Resume path: an invoice already exists (created in an earlier
+        // attempt) but never got a working payment link — e.g. the OAuth
+        // scope needed for the email/send step was missing at the time.
+        // Retry just that remaining step against the EXISTING invoice
+        // rather than creating a second, duplicate one.
+        if ($group['zoho_invoice_id']) {
+            zoho_finish_invoice_send($pdo, $group, $accessToken);
+            return;
         }
 
         $lines = $pdo->prepare(
@@ -148,11 +167,6 @@ function sync_order_to_zoho(int $orderGroupId): void
 
         if (!$lines || !$group['email']) {
             return; // nothing to invoice, or no email on file to attach it to
-        }
-
-        $accessToken = zoho_get_access_token();
-        if (!$accessToken) {
-            throw new RuntimeException('Could not obtain a Zoho access token.');
         }
 
         $contactId = zoho_find_or_create_contact($accessToken, $group['visitor_name'], $group['email'], $group['visitor_phone']);
@@ -193,37 +207,10 @@ function sync_order_to_zoho(int $orderGroupId): void
             return;
         }
 
-        // CRITICAL: Zoho cannot generate a working payment URL for a draft
-        // invoice at all — confirmed directly from Zoho's own documentation
-        // ("You cannot generate payment URLs for invoices that are in the
-        // Draft status"). Emailing it transitions status to Sent/Open,
-        // which is what actually makes the payment link work — and also
-        // gets the customer a proper emailed copy as a bonus, alongside
-        // the WhatsApp link we send below.
-        zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', [], $accessToken);
+        $pdo->prepare('UPDATE order_groups SET zoho_invoice_id = ? WHERE id = ?')->execute([$invoiceId, $orderGroupId]);
 
-        // Re-fetch AFTER the transition rather than trusting the draft-time
-        // creation response — the payment URL field is only meaningfully
-        // populated once the invoice is actually sendable, which is
-        // exactly the bug that caused the first version of this to send a
-        // broken link.
-        $refetched = zoho_api_call('GET', '/invoices/' . $invoiceId, null, $accessToken);
-        $paymentUrl = $refetched['data']['invoice']['invoice_url']
-            ?? $refetched['data']['invoice']['payment_url']
-            ?? null;
-        // The human-readable number (e.g. "INV-000123") that actually
-        // prints on the invoice document — distinct from invoice_id,
-        // which is an internal identifier not meant for cross-checking.
-        $invoiceNumber = $refetched['data']['invoice']['invoice_number'] ?? null;
-
-        $pdo->prepare('UPDATE order_groups SET zoho_invoice_id = ?, zoho_invoice_number = ?, zoho_payment_url = ?, zoho_invoice_delivered = 1, zoho_sync_error = NULL, zoho_raw_response = ? WHERE id = ?')
-            ->execute([$invoiceId, $invoiceNumber, $paymentUrl, $paymentUrl ? null : $refetched['raw'], $orderGroupId]);
-
-        if ($paymentUrl) {
-            send_whatsapp_payment_link($group['visitor_phone'], $group['total_price_aed'], $paymentUrl, $orderGroupId);
-        } else {
-            error_log("Zoho invoice {$invoiceId} created for order_group {$orderGroupId} but no payment URL field found even after sending — check zoho_raw_response to identify the correct field name.");
-        }
+        $group['zoho_invoice_id'] = $invoiceId;
+        zoho_finish_invoice_send($pdo, $group, $accessToken);
     } catch (Throwable $e) {
         error_log('sync_order_to_zoho failed for order_group ' . $orderGroupId . ': ' . $e->getMessage());
         try {
@@ -232,6 +219,49 @@ function sync_order_to_zoho(int $orderGroupId): void
         } catch (Throwable $inner) {
             // Even the error-logging failed — give up silently, must not break the caller either way.
         }
+    }
+}
+
+/**
+ * Completes the "send it and get a working payment link" half of the
+ * flow for an invoice that already exists — used both for brand new
+ * invoices and for resuming one that was created earlier but never
+ * finished this step (see the resume path above).
+ */
+function zoho_finish_invoice_send(PDO $pdo, array $group, string $accessToken): void
+{
+    $orderGroupId = (int)$group['id'];
+    $invoiceId = $group['zoho_invoice_id'];
+
+    // CRITICAL: Zoho cannot generate a working payment URL for a draft
+    // invoice at all — confirmed directly from Zoho's own documentation
+    // ("You cannot generate payment URLs for invoices that are in the
+    // Draft status"). Emailing it transitions status to Sent/Open, which
+    // is what actually makes the payment link work — and also gets the
+    // customer a proper emailed copy as a bonus, alongside the WhatsApp
+    // link we send below.
+    zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', [], $accessToken);
+
+    // Re-fetch AFTER the transition rather than trusting the draft-time
+    // creation response — the payment URL field is only meaningfully
+    // populated once the invoice is actually sendable, which is exactly
+    // the bug that caused the first version of this to send a broken link.
+    $refetched = zoho_api_call('GET', '/invoices/' . $invoiceId, null, $accessToken);
+    $paymentUrl = $refetched['data']['invoice']['invoice_url']
+        ?? $refetched['data']['invoice']['payment_url']
+        ?? null;
+    // The human-readable number (e.g. "INV-000123") that actually prints
+    // on the invoice document — distinct from invoice_id, which is an
+    // internal identifier not meant for cross-checking.
+    $invoiceNumber = $refetched['data']['invoice']['invoice_number'] ?? null;
+
+    $pdo->prepare('UPDATE order_groups SET zoho_invoice_number = ?, zoho_payment_url = ?, zoho_invoice_delivered = 1, zoho_sync_error = NULL, zoho_raw_response = ? WHERE id = ?')
+        ->execute([$invoiceNumber, $paymentUrl, $paymentUrl ? null : $refetched['raw'], $orderGroupId]);
+
+    if ($paymentUrl) {
+        send_whatsapp_payment_link($group['visitor_phone'], $group['total_price_aed'], $paymentUrl, $orderGroupId);
+    } else {
+        error_log("Zoho invoice {$invoiceId} for order_group {$orderGroupId} still has no payment URL field even after sending — check zoho_raw_response to identify the correct field name.");
     }
 }
 

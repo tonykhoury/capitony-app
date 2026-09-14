@@ -40,7 +40,7 @@ function zoho_get_access_token(): ?string
 }
 
 /** Shared cURL helper for authenticated Zoho Books API calls. */
-function zoho_api_call(string $method, string $path, ?array $body, string $accessToken): array
+function zoho_api_call(string $method, string $path, array|object|null $body, string $accessToken): array
 {
     $url = ZOHO_API_DOMAIN . '/books/v3' . $path
         . (str_contains($path, '?') ? '&' : '?') . 'organization_id=' . ZOHO_ORGANIZATION_ID;
@@ -278,7 +278,11 @@ function zoho_finish_invoice_send(PDO $pdo, array $group, string $accessToken): 
     // is what actually makes the payment link work — and also gets the
     // customer a proper emailed copy as a bonus, alongside the WhatsApp
     // link we send below.
-    $emailResult = zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', [], $accessToken);
+    // Empty JSON OBJECT, not an empty array — PHP's json_encode([])
+    // produces the JSON array "[]", not "{}", which is exactly what
+    // caused a genuine, reproducible "JSON is not well formed" error
+    // from Zoho for this endpoint. new stdClass() always encodes to "{}".
+    $emailResult = zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', new stdClass(), $accessToken);
 
     if (($emailResult['data']['code'] ?? -1) !== 0) {
         // This call failing silently (Error 7008 — no contact person —

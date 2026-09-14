@@ -8,6 +8,13 @@ if (is_post()) {
     csrf_verify();
 
     if (($_POST['action'] ?? '') === 'retry_zoho') {
+        // Clear the payment URL first — an order can be sitting with an
+        // old, broken link captured before a bug fix (invoice appeared
+        // synced, but never actually left Draft), which would otherwise
+        // make sync_order_to_zoho() think there's nothing left to check.
+        // Clearing it forces a genuine re-verification, not just a replay
+        // of whatever was cached from the last attempt.
+        db()->prepare('UPDATE order_groups SET zoho_payment_url = NULL WHERE id = ?')->execute([$groupId]);
         sync_order_to_zoho($groupId);
         flash('success', 'Retried Zoho sync.');
         redirect('/admin/order-detail.php?id=' . $groupId);
@@ -82,6 +89,11 @@ $lines = $lines->fetchAll();
         <?php if (!empty($group['zoho_payment_url'])): ?>
           <br><a href="<?= e($group['zoho_payment_url']) ?>" target="_blank" rel="noopener" style="color:var(--sky);">View payment link</a>
         <?php endif; ?>
+        <form method="post" style="margin-top:8px;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="action" value="retry_zoho">
+          <button type="submit" class="btn" style="background:var(--foam-dim); font-size:0.72rem; padding:6px 12px;" onclick="return confirm('This re-checks the invoice with Zoho and may re-send the WhatsApp payment link if it finds a working one. Continue?');">Force Recheck</button>
+        </form>
       </div>
     <?php elseif (!empty($group['zoho_sync_error'])): ?>
       <div class="alert alert-error" style="margin-top:14px;">

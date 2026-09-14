@@ -6,6 +6,13 @@ $groupId = (int)($_GET['id'] ?? 0);
 
 if (is_post()) {
     csrf_verify();
+
+    if (($_POST['action'] ?? '') === 'retry_zoho') {
+        sync_order_to_zoho($groupId);
+        flash('success', 'Retried Zoho sync.');
+        redirect('/admin/order-detail.php?id=' . $groupId);
+    }
+
     $newStatus = $_POST['new_status'] ?? '';
     if (in_array($newStatus, ['pending', 'confirmed', 'fulfilled', 'cancelled'], true)) {
         db()->prepare('UPDATE order_groups SET status = ? WHERE id = ?')->execute([$newStatus, $groupId]);
@@ -77,7 +84,14 @@ $lines = $lines->fetchAll();
         <?php endif; ?>
       </div>
     <?php elseif (!empty($group['zoho_sync_error'])): ?>
-      <div class="alert alert-error" style="margin-top:14px;">Zoho sync failed: <?= e($group['zoho_sync_error']) ?></div>
+      <div class="alert alert-error" style="margin-top:14px;">
+        Zoho sync failed: <?= e($group['zoho_sync_error']) ?>
+        <form method="post" style="display:inline; margin-left:10px;">
+          <?= csrf_field() ?>
+          <input type="hidden" name="action" value="retry_zoho">
+          <button type="submit" class="btn" style="background:var(--foam-dim); font-size:0.72rem; padding:6px 12px;">Retry Sync</button>
+        </form>
+      </div>
     <?php endif; ?>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:20px;">

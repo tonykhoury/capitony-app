@@ -67,7 +67,7 @@ function zoho_api_call(string $method, string $path, ?array $body, string $acces
 }
 
 /** Finds an existing Zoho contact by email, or creates one. Returns contact_id. */
-function zoho_find_or_create_contact(string $accessToken, string $name, string $email, string $phone): ?string
+function zoho_find_or_create_contact(string $accessToken, string $name, string $email, string $phone): string
 {
     $search = zoho_api_call('GET', '/contacts?email=' . urlencode($email), null, $accessToken);
     if ($search['http_code'] === 200 && !empty($search['data']['contacts'][0]['contact_id'])) {
@@ -80,7 +80,18 @@ function zoho_find_or_create_contact(string $accessToken, string $name, string $
         'phone' => $phone,
     ], $accessToken);
 
-    return $create['data']['contact']['contact_id'] ?? null;
+    $contactId = $create['data']['contact']['contact_id'] ?? null;
+
+    if (!$contactId) {
+        // Surface the REAL reason rather than a generic message — this is
+        // what was hiding a genuinely diagnosable cause (e.g. Zoho
+        // rejecting a duplicate email/phone across two contacts) behind
+        // "could not find or create a contact."
+        $errorMsg = $create['data']['message'] ?? 'Unknown error';
+        throw new RuntimeException("Zoho contact step failed (HTTP {$create['http_code']}): {$errorMsg}");
+    }
+
+    return $contactId;
 }
 
 /**
@@ -123,9 +134,6 @@ function sync_order_to_zoho(int $orderGroupId): void
         }
 
         $contactId = zoho_find_or_create_contact($accessToken, $group['visitor_name'], $group['email'], $group['visitor_phone']);
-        if (!$contactId) {
-            throw new RuntimeException('Could not find or create a Zoho contact.');
-        }
 
         $lineItems = [];
         foreach ($lines as $line) {

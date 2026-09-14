@@ -67,17 +67,55 @@ function zoho_api_call(string $method, string $path, ?array $body, string $acces
 }
 
 /** Finds an existing Zoho contact by email, or creates one. Returns contact_id. */
+/**
+ * Contacts created before this fix existed have no "contact person" —
+ * Zoho distinguishes the company/customer record from the individual who
+ * actually receives emails, and invoice-sending fails silently (Error
+ * 7008) without one. Patches an existing contact to add one if it's
+ * missing, so previously-created contacts stop failing indefinitely.
+ */
+function zoho_ensure_contact_person(string $accessToken, string $contactId, string $name, string $email, string $phone): void
+{
+    $detail = zoho_api_call('GET', '/contacts/' . $contactId, null, $accessToken);
+    if (!empty($detail['data']['contact']['contact_persons'])) {
+        return; // already has one — the list-search response above doesn't reliably show this, so check the full detail
+    }
+
+    zoho_api_call('PUT', '/contacts/' . $contactId, [
+        'contact_persons' => [[
+            'first_name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'is_primary_contact' => true,
+        ]],
+    ], $accessToken);
+}
+
 function zoho_find_or_create_contact(string $accessToken, string $name, string $email, string $phone): string
 {
     $search = zoho_api_call('GET', '/contacts?email=' . urlencode($email), null, $accessToken);
     if ($search['http_code'] === 200 && !empty($search['data']['contacts'][0]['contact_id'])) {
-        return $search['data']['contacts'][0]['contact_id'];
+        $existingId = $search['data']['contacts'][0]['contact_id'];
+        zoho_ensure_contact_person($accessToken, $existingId, $name, $email, $phone);
+        return $existingId;
     }
 
     $create = zoho_api_call('POST', '/contacts', [
         'contact_name' => $name,
         'email' => $email,
         'phone' => $phone,
+        // Zoho distinguishes the contact/company record from the
+        // individual "contact person" who actually receives emails —
+        // without this, sending an invoice fails with Error 7008 ("no
+        // contact persons associated with this invoice"), which our
+        // earlier code never checked for, so the invoice silently stayed
+        // in Draft with no working payment link despite appearing to succeed.
+        'contact_persons' => [[
+            'first_name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'is_primary_contact' => true,
+        ]],
     ], $accessToken);
 
     $contactId = $create['data']['contact']['contact_id'] ?? null;
@@ -240,13 +278,37 @@ function zoho_finish_invoice_send(PDO $pdo, array $group, string $accessToken): 
     // is what actually makes the payment link work — and also gets the
     // customer a proper emailed copy as a bonus, alongside the WhatsApp
     // link we send below.
-    zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', [], $accessToken);
+    $emailResult = zoho_api_call('POST', '/invoices/' . $invoiceId . '/email', [], $accessToken);
+
+    if (($emailResult['data']['code'] ?? -1) !== 0) {
+        // This call failing silently (Error 7008 — no contact person —
+        // being the real-world case that motivated this check) was
+        // exactly what let a broken payment link go out before: the code
+        // continued regardless and happily sent a link pointing at an
+        // invoice still stuck in Draft.
+        $errorMsg = $emailResult['data']['message'] ?? 'Unknown error';
+        $pdo->prepare('UPDATE order_groups SET zoho_sync_error = ?, zoho_raw_response = ? WHERE id = ?')
+            ->execute([substr("Invoice created but sending it failed: {$errorMsg}", 0, 255), $emailResult['raw'], $orderGroupId]);
+        return;
+    }
 
     // Re-fetch AFTER the transition rather than trusting the draft-time
     // creation response — the payment URL field is only meaningfully
     // populated once the invoice is actually sendable, which is exactly
     // the bug that caused the first version of this to send a broken link.
     $refetched = zoho_api_call('GET', '/invoices/' . $invoiceId, null, $accessToken);
+    $stillDraft = ($refetched['data']['invoice']['status'] ?? '') === 'draft';
+
+    if ($stillDraft) {
+        // Belt-and-braces: even though the email call reported success,
+        // double-check the status actually changed before trusting
+        // anything else in this response — never send a link we haven't
+        // verified will actually work.
+        $pdo->prepare('UPDATE order_groups SET zoho_sync_error = ?, zoho_raw_response = ? WHERE id = ?')
+            ->execute(['Invoice still shows Draft status even after the send call reported success.', $refetched['raw'], $orderGroupId]);
+        return;
+    }
+
     $paymentUrl = $refetched['data']['invoice']['invoice_url']
         ?? $refetched['data']['invoice']['payment_url']
         ?? null;

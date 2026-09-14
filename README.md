@@ -106,14 +106,19 @@ anything from them.
      **working** payment link. The link is re-fetched via a fresh `GET`
      *after* this transition, not trusted from the draft-time creation
      response, since that field isn't reliably populated before the
-     invoice is actually sendable.
+     invoice is actually sendable. Also captures Zoho's human-readable
+     `invoice_number` (e.g. `INV-000123`) separately from the internal
+     `invoice_id` — the former is what actually prints on the invoice
+     document and is what's actually useful for cross-checking, shown
+     everywhere payment status is shown rather than the opaque internal ID.
   2. `scripts/zoho-payment-poll.php` (CLI, ~every 15 min via **Hostinger
      Cron Jobs**) checks every order still awaiting payment. Once Zoho
      shows `paid`, it sets `order_groups.zoho_payment_confirmed_at` —
      **the single authoritative "safe to fulfill" signal** — and
      WhatsApps both the customer (payment confirmed) and **every captain
      whose trip contributed fish to that order** (via `users.phone`,
-     matched through `catch_items` → `trips` → `captain_id`).
+     matched through `catch_items` → `trips` → `captain_id`), both
+     messages including the invoice number.
   - **Erroneous-delivery safeguard, shown everywhere staff view
     orders**: `/captain/orders.php` highlights any unpaid-but-invoiced
     row with a colored background and an explicit "⚠ AWAITING PAYMENT"

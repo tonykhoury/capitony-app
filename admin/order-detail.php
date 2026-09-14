@@ -68,10 +68,10 @@ $lines = $lines->fetchAll();
     </div>
 
     <?php if (!empty($group['zoho_payment_confirmed_at'])): ?>
-      <div class="alert alert-success" style="margin-top:14px;">✓ PAID (confirmed <?= e(utc_to_local($group['zoho_payment_confirmed_at'], 'M j, g:i A')) ?>) — safe to proceed with delivery/pickup. Zoho Invoice ID <?= e($group['zoho_invoice_id']) ?></div>
+      <div class="alert alert-success" style="margin-top:14px;">✓ PAID (confirmed <?= e(utc_to_local($group['zoho_payment_confirmed_at'], 'M j, g:i A')) ?>) — safe to proceed with delivery/pickup. Invoice <?= e($group['zoho_invoice_number'] ?: $group['zoho_invoice_id']) ?></div>
     <?php elseif (!empty($group['zoho_invoice_id'])): ?>
       <div class="warning-box" style="margin-top:14px;">
-        ⚠ AWAITING PAYMENT — invoice sent, payment link delivered via WhatsApp. Do not fulfill until this shows PAID. Zoho Invoice ID <?= e($group['zoho_invoice_id']) ?>.
+        ⚠ AWAITING PAYMENT — invoice sent, payment link delivered via WhatsApp. Do not fulfill until this shows PAID. Invoice <?= e($group['zoho_invoice_number'] ?: $group['zoho_invoice_id']) ?>.
         <?php if (!empty($group['zoho_payment_url'])): ?>
           <br><a href="<?= e($group['zoho_payment_url']) ?>" target="_blank" rel="noopener" style="color:var(--sky);">View payment link</a>
         <?php endif; ?>

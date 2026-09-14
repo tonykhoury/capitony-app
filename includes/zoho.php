@@ -181,9 +181,13 @@ function sync_order_to_zoho(int $orderGroupId): void
         $paymentUrl = $refetched['data']['invoice']['invoice_url']
             ?? $refetched['data']['invoice']['payment_url']
             ?? null;
+        // The human-readable number (e.g. "INV-000123") that actually
+        // prints on the invoice document — distinct from invoice_id,
+        // which is an internal identifier not meant for cross-checking.
+        $invoiceNumber = $refetched['data']['invoice']['invoice_number'] ?? null;
 
-        $pdo->prepare('UPDATE order_groups SET zoho_invoice_id = ?, zoho_payment_url = ?, zoho_invoice_delivered = 1, zoho_sync_error = NULL, zoho_raw_response = ? WHERE id = ?')
-            ->execute([$invoiceId, $paymentUrl, $paymentUrl ? null : $refetched['raw'], $orderGroupId]);
+        $pdo->prepare('UPDATE order_groups SET zoho_invoice_id = ?, zoho_invoice_number = ?, zoho_payment_url = ?, zoho_invoice_delivered = 1, zoho_sync_error = NULL, zoho_raw_response = ? WHERE id = ?')
+            ->execute([$invoiceId, $invoiceNumber, $paymentUrl, $paymentUrl ? null : $refetched['raw'], $orderGroupId]);
 
         if ($paymentUrl) {
             send_whatsapp_payment_link($group['visitor_phone'], $group['total_price_aed'], $paymentUrl, $orderGroupId);
@@ -217,7 +221,7 @@ function zoho_poll_and_deliver_paid_invoices(): void
     // not delivery. zoho_payment_confirmed_at is the authoritative "safe
     // to fulfill" signal shown to staff everywhere orders are listed.
     $pending = $pdo->query(
-        "SELECT id, zoho_invoice_id, visitor_phone, total_price_aed
+        "SELECT id, zoho_invoice_id, zoho_invoice_number, visitor_phone, total_price_aed
          FROM order_groups
          WHERE zoho_invoice_id IS NOT NULL AND zoho_payment_confirmed_at IS NULL"
     )->fetchAll();
@@ -244,7 +248,7 @@ function zoho_poll_and_deliver_paid_invoices(): void
             $pdo->prepare('UPDATE order_groups SET zoho_payment_confirmed_at = NOW() WHERE id = ?')
                 ->execute([$row['id']]);
 
-            send_whatsapp_payment_confirmed($row['visitor_phone'], $row['total_price_aed'], $row['id']);
+            send_whatsapp_payment_confirmed($row['visitor_phone'], $row['total_price_aed'], $row['id'], $row['zoho_invoice_number']);
 
             // Notify every captain whose trip contributed fish to this
             // order — this is the actual safeguard against an erroneous
@@ -259,7 +263,7 @@ function zoho_poll_and_deliver_paid_invoices(): void
             );
             $captains->execute([$row['id']]);
             foreach ($captains->fetchAll() as $captain) {
-                send_whatsapp_payment_confirmed_to_captain($captain['phone'], $row['id'], $row['total_price_aed']);
+                send_whatsapp_payment_confirmed_to_captain($captain['phone'], $row['id'], $row['total_price_aed'], $row['zoho_invoice_number']);
             }
         } catch (Throwable $e) {
             error_log('zoho_poll_and_deliver_paid_invoices failed for order_group ' . $row['id'] . ': ' . $e->getMessage());

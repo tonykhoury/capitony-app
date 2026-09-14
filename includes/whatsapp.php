@@ -81,12 +81,12 @@ function send_whatsapp_payment_link(string $toPhone, float $totalAed, string $pa
 }
 
 /** Step 2 of the payment flow: confirms payment received once Zoho shows the invoice as paid. */
-function send_whatsapp_payment_confirmed(string $toPhone, float $totalAed, int $orderGroupId): array
+function send_whatsapp_payment_confirmed(string $toPhone, float $totalAed, int $orderGroupId, ?string $invoiceNumber = null): array
 {
     return send_whatsapp_template_message(
         $toPhone,
         "Payment received for Order #{$orderGroupId} — AED " . number_format($totalAed, 2),
-        'Your invoice is on its way by email. Thank you!'
+        $invoiceNumber ? "Invoice {$invoiceNumber} is on its way by email. Thank you!" : 'Your invoice is on its way by email. Thank you!'
     );
 }
 
@@ -101,11 +101,11 @@ function send_whatsapp_roster_link(string $toPhone, string $tripLabel, string $r
 }
 
 /** Notifies a captain that payment is confirmed — the explicit signal that fulfillment/delivery can safely proceed. */
-function send_whatsapp_payment_confirmed_to_captain(string $captainPhone, int $orderGroupId, float $totalAed): array
+function send_whatsapp_payment_confirmed_to_captain(string $captainPhone, int $orderGroupId, float $totalAed, ?string $invoiceNumber = null): array
 {
     return send_whatsapp_template_message(
         $captainPhone,
-        "PAID — Order #{$orderGroupId} (AED " . number_format($totalAed, 2) . ")",
+        "PAID — Order #{$orderGroupId} (AED " . number_format($totalAed, 2) . ")" . ($invoiceNumber ? " — Invoice {$invoiceNumber}" : ''),
         'Safe to proceed with delivery/pickup — check Capitony Orders for details.'
     );
 }

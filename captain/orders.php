@@ -47,7 +47,7 @@ $ordersByTrip = [];
 if ($tripIds) {
     $placeholders = implode(',', array_fill(0, count($tripIds), '?'));
     $stmt = db()->prepare(
-        "SELECT o.*, s.name AS species_name, ci.trip_id, og.zoho_payment_confirmed_at, og.zoho_invoice_id
+        "SELECT o.*, s.name AS species_name, ci.trip_id, og.zoho_payment_confirmed_at, og.zoho_invoice_id, og.zoho_invoice_number
          FROM orders o
          JOIN catch_items ci ON ci.id = o.catch_item_id
          JOIN species s ON s.id = ci.species_id
@@ -111,6 +111,7 @@ if ($tripIds) {
         <td>
           <?php if ($isPaid): ?>
             <strong style="color:#2E7D4F;">✓ PAID</strong>
+            <?php if ($o['zoho_invoice_number']): ?><div style="font-family:var(--mono); font-size:0.72rem; color:var(--scale);"><?= e($o['zoho_invoice_number']) ?></div><?php endif; ?>
           <?php elseif ($needsPayment): ?>
             <strong style="color:#C7842A;">⚠ AWAITING PAYMENT</strong>
           <?php else: ?>

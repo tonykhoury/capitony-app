@@ -89,8 +89,10 @@ $counts = db()->query(
         <td>
           <?php if (!empty($g['zoho_payment_confirmed_at'])): ?>
             <strong style="color:#2E7D4F; font-size:0.82rem;">✓ PAID</strong>
+            <?php if ($g['zoho_invoice_number']): ?><div style="font-family:var(--mono); font-size:0.72rem; color:var(--scale);"><?= e($g['zoho_invoice_number']) ?></div><?php endif; ?>
           <?php elseif (!empty($g['zoho_invoice_id'])): ?>
             <strong style="color:#C7842A; font-size:0.82rem;">⚠ AWAITING</strong>
+            <?php if ($g['zoho_invoice_number']): ?><div style="font-family:var(--mono); font-size:0.72rem; color:var(--scale);"><?= e($g['zoho_invoice_number']) ?></div><?php endif; ?>
           <?php else: ?>
             <span style="color:var(--scale); font-size:0.8rem;">—</span>
           <?php endif; ?>

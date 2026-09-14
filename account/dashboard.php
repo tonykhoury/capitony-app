@@ -52,6 +52,7 @@ require __DIR__ . '/../includes/public-header.php';
       </table>
     </div>
 
+    <a href="/account/addresses.php" class="btn btn-quiet">Manage Saved Addresses</a>
     <a href="/account/logout.php" class="btn btn-quiet">Log Out</a>
   </div>
 </section>

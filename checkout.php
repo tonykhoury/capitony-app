@@ -16,10 +16,15 @@ foreach ($lines as $line) {
 
 $loggedInCustomer = current_customer();
 $customerProfile = null;
+$savedAddresses = [];
 if ($loggedInCustomer) {
     $stmt = db()->prepare('SELECT name, email, phone FROM customers WHERE id = ?');
     $stmt->execute([$loggedInCustomer['id']]);
     $customerProfile = $stmt->fetch();
+
+    $addrStmt = db()->prepare('SELECT * FROM customer_addresses WHERE customer_id = ? ORDER BY created_at DESC');
+    $addrStmt->execute([$loggedInCustomer['id']]);
+    $savedAddresses = $addrStmt->fetchAll();
 }
 
 $error = null;
@@ -39,6 +44,31 @@ if (is_post()) {
     $apartmentVilla = trim($_POST['apartment_villa'] ?? '');
     $landmark = trim($_POST['landmark'] ?? '');
     $makani = trim($_POST['makani_number'] ?? '');
+
+    $selectedAddressId = $_POST['saved_address_id'] ?? 'new';
+    $saveNewAddress = isset($_POST['save_new_address']);
+    $newAddressTitle = trim($_POST['new_address_title'] ?? '');
+
+    // If a saved address was picked, re-fetch it server-side rather than
+    // trusting whatever the (hidden, JS-managed) form fields happen to
+    // contain — the visible fields are only ever populated by our own
+    // JS for display, but a tampered request could try to submit a
+    // saved_address_id alongside completely different address text.
+    if ($loggedInCustomer && $selectedAddressId !== 'new') {
+        $savedAddr = db()->prepare('SELECT * FROM customer_addresses WHERE id = ? AND customer_id = ?');
+        $savedAddr->execute([(int)$selectedAddressId, $loggedInCustomer['id']]);
+        $savedAddr = $savedAddr->fetch();
+        if ($savedAddr) {
+            $emirate = $savedAddr['emirate'];
+            $city = $savedAddr['city'];
+            $neighborhood = $savedAddr['neighborhood'] ?? '';
+            $street = $savedAddr['street'];
+            $building = $savedAddr['building'];
+            $apartmentVilla = $savedAddr['apartment_villa'];
+            $landmark = $savedAddr['landmark'] ?? '';
+            $makani = $savedAddr['makani_number'] ?? '';
+        }
+    }
 
     $createAccount = !$loggedInCustomer && isset($_POST['create_account']);
     $newAccountPassword = $_POST['new_account_password'] ?? '';
@@ -171,6 +201,20 @@ if (is_post()) {
             $pdo->commit();
             cart_clear();
             $confirmedGroupId = $groupId;
+
+            // Save this address for next time, if requested — only when it
+            // was actually freshly typed (not re-selecting an existing saved
+            // one, which would just create a pointless duplicate).
+            if ($loggedInCustomer && $selectedAddressId === 'new' && $saveNewAddress && $anyDelivery && $newAddressTitle !== '') {
+                $pdo->prepare(
+                    'INSERT INTO customer_addresses (customer_id, title, emirate, city, neighborhood, street, building, apartment_villa, landmark, makani_number)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                )->execute([
+                    $loggedInCustomer['id'], $newAddressTitle, $emirate, $city, $neighborhood ?: null,
+                    $street, $building, $apartmentVilla, $landmark ?: null, $makani ?: null,
+                ]);
+            }
+
             // Zoho invoicing intentionally does NOT happen here — an order
             // being placed isn't the same as it being reviewed/accepted.
             // The invoice fires when admin or captain marks the order
@@ -258,10 +302,21 @@ require __DIR__ . '/includes/public-header.php';
 
         <?php if ($needsAddress): ?>
         <h3 style="font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--mist); margin:20px 0 10px;">Delivery Address</h3>
+
+        <?php if ($loggedInCustomer && $savedAddresses): ?>
+        <div class="service-chip-group" style="margin-bottom:14px;">
+          <?php foreach ($savedAddresses as $i => $sa): ?>
+            <label><input type="radio" name="saved_address_id" value="<?= (int)$sa['id'] ?>" <?= $i === 0 ? 'checked' : '' ?> onclick="toggleAddressFields()"> <?= e($sa['title']) ?></label>
+          <?php endforeach; ?>
+          <label><input type="radio" name="saved_address_id" value="new" onclick="toggleAddressFields()"> + Enter a new address</label>
+        </div>
+        <?php endif; ?>
+
+        <div id="manualAddressFields" style="display:<?= ($loggedInCustomer && $savedAddresses) ? 'none' : 'block' ?>;">
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 18px;">
           <div>
             <label for="emirate">Emirate</label>
-            <select id="emirate" name="emirate" required>
+            <select id="emirate" name="emirate">
               <option value="">— select —</option>
               <?php foreach (['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Umm Al Quwain', 'Ras Al Khaimah', 'Fujairah'] as $em): ?>
                 <option value="<?= e($em) ?>" <?= ($_POST['emirate'] ?? '') === $em ? 'selected' : '' ?>><?= e($em) ?></option>
@@ -270,7 +325,7 @@ require __DIR__ . '/includes/public-header.php';
           </div>
           <div>
             <label for="city">City / Area</label>
-            <input type="text" id="city" name="city" required value="<?= e($_POST['city'] ?? '') ?>">
+            <input type="text" id="city" name="city" value="<?= e($_POST['city'] ?? '') ?>">
           </div>
           <div>
             <label for="neighborhood">Neighborhood (optional)</label>
@@ -278,15 +333,15 @@ require __DIR__ . '/includes/public-header.php';
           </div>
           <div>
             <label for="street">Street</label>
-            <input type="text" id="street" name="street" required value="<?= e($_POST['street'] ?? '') ?>">
+            <input type="text" id="street" name="street" value="<?= e($_POST['street'] ?? '') ?>">
           </div>
           <div>
             <label for="building">Building name/number</label>
-            <input type="text" id="building" name="building" required value="<?= e($_POST['building'] ?? '') ?>">
+            <input type="text" id="building" name="building" value="<?= e($_POST['building'] ?? '') ?>">
           </div>
           <div>
             <label for="apartment_villa">Apartment / Villa number</label>
-            <input type="text" id="apartment_villa" name="apartment_villa" required value="<?= e($_POST['apartment_villa'] ?? '') ?>">
+            <input type="text" id="apartment_villa" name="apartment_villa" value="<?= e($_POST['apartment_villa'] ?? '') ?>">
           </div>
           <div>
             <label for="landmark">Nearest landmark (optional)</label>
@@ -297,6 +352,29 @@ require __DIR__ . '/includes/public-header.php';
             <input type="text" id="makani_number" name="makani_number" value="<?= e($_POST['makani_number'] ?? '') ?>">
           </div>
         </div>
+
+        <?php if ($loggedInCustomer): ?>
+        <div class="service-chip-group" style="margin-top:10px;">
+          <label><input type="checkbox" id="saveAddressCheck" name="save_new_address" onclick="document.getElementById('newAddressTitleField').style.display = this.checked ? 'block' : 'none';"> Save this address for next time</label>
+        </div>
+        <div id="newAddressTitleField" style="display:none;">
+          <label for="new_address_title">Name this address</label>
+          <input type="text" id="new_address_title" name="new_address_title" placeholder="e.g. Home, Office">
+        </div>
+        <?php endif; ?>
+        </div>
+
+        <script>
+        function toggleAddressFields() {
+          var selected = document.querySelector('input[name="saved_address_id"]:checked');
+          var manual = document.getElementById('manualAddressFields');
+          if (!selected || selected.value === 'new') {
+            manual.style.display = 'block';
+          } else {
+            manual.style.display = 'none';
+          }
+        }
+        </script>
         <?php endif; ?>
 
         <?php if (!$loggedInCustomer): ?>

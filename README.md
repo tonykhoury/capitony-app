@@ -204,6 +204,15 @@ anything from them.
   order is linked via `customer_id`; a guest can optionally check
   "create an account" to register using the same details they just
   typed, without it ever blocking guest checkout if they skip it.
+- **Saved delivery addresses**: logged-in customers can save multiple
+  titled addresses (`/account/addresses.php` — "Home," "Office," etc.)
+  and pick one at checkout via radio buttons instead of retyping every
+  time, or enter a fresh one and optionally save it right there with a
+  checkbox. **Server-side trust boundary**: selecting a saved address
+  re-fetches it from the database by ID rather than trusting whatever
+  the (JS-managed, normally-hidden) address fields contain at submit
+  time — the visible fields are just for display, a saved selection
+  always wins over anything that might be lurking in those inputs.
 - **Photo album**: admin uploads/removes photos and videos (`/admin/gallery.php`),
   shown publicly at `/album.php`. Photos are re-encoded via GD like every
   other upload; videos are validated by real MIME type (not just file

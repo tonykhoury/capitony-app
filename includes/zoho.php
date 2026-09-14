@@ -322,7 +322,7 @@ function zoho_finish_invoice_send(PDO $pdo, array $group, string $accessToken): 
     $invoiceNumber = $refetched['data']['invoice']['invoice_number'] ?? null;
 
     $pdo->prepare('UPDATE order_groups SET zoho_invoice_number = ?, zoho_payment_url = ?, zoho_invoice_delivered = 1, zoho_sync_error = NULL, zoho_raw_response = ? WHERE id = ?')
-        ->execute([$invoiceNumber, $paymentUrl, $paymentUrl ? null : $refetched['raw'], $orderGroupId]);
+        ->execute([$invoiceNumber, $paymentUrl, $refetched['raw'], $orderGroupId]);
 
     if ($paymentUrl) {
         send_whatsapp_payment_link($group['visitor_phone'], $group['total_price_aed'], $paymentUrl, $orderGroupId);

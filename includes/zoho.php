@@ -81,17 +81,25 @@ function zoho_find_or_create_contact(string $accessToken, string $name, string $
     ], $accessToken);
 
     $contactId = $create['data']['contact']['contact_id'] ?? null;
-
-    if (!$contactId) {
-        // Surface the REAL reason rather than a generic message — this is
-        // what was hiding a genuinely diagnosable cause (e.g. Zoho
-        // rejecting a duplicate email/phone across two contacts) behind
-        // "could not find or create a contact."
-        $errorMsg = $create['data']['message'] ?? 'Unknown error';
-        throw new RuntimeException("Zoho contact step failed (HTTP {$create['http_code']}): {$errorMsg}");
+    if ($contactId) {
+        return $contactId;
     }
 
-    return $contactId;
+    // Zoho enforces unique contact NAMES, not just unique emails. The
+    // same real person can reach this point with a different email
+    // across two guest orders — the email search above misses their
+    // existing contact, and the create then fails on a name collision.
+    // Fall back to searching by name before giving up, so their orders
+    // consolidate under the one existing contact rather than erroring out.
+    $errorMsg = $create['data']['message'] ?? '';
+    if (stripos($errorMsg, 'already exists') !== false) {
+        $nameSearch = zoho_api_call('GET', '/contacts?contact_name=' . urlencode($name), null, $accessToken);
+        if ($nameSearch['http_code'] === 200 && !empty($nameSearch['data']['contacts'][0]['contact_id'])) {
+            return $nameSearch['data']['contacts'][0]['contact_id'];
+        }
+    }
+
+    throw new RuntimeException("Zoho contact step failed (HTTP {$create['http_code']}): " . ($errorMsg ?: 'Unknown error'));
 }
 
 /**

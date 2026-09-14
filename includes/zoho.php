@@ -81,14 +81,22 @@ function zoho_ensure_contact_person(string $accessToken, string $contactId, stri
         return; // already has one — the list-search response above doesn't reliably show this, so check the full detail
     }
 
-    zoho_api_call('PUT', '/contacts/' . $contactId, [
-        'contact_persons' => [[
-            'first_name' => $name,
-            'email' => $email,
-            'phone' => $phone,
-            'is_primary_contact' => true,
-        ]],
+    // Adding a contact person to an EXISTING contact needs its own
+    // dedicated endpoint — embedding contact_persons in a general PUT
+    // update (what this used to do) doesn't work the way contact
+    // CREATION does, and was failing silently since its result was
+    // never checked. This dedicated endpoint only needs contacts.CREATE,
+    // which we already have — no extra OAuth scope needed.
+    $result = zoho_api_call('POST', '/contacts/' . $contactId . '/contactpersons', [
+        'first_name' => $name,
+        'email' => $email,
+        'phone' => $phone,
+        'is_primary_contact' => true,
     ], $accessToken);
+
+    if (($result['data']['code'] ?? -1) !== 0) {
+        error_log("zoho_ensure_contact_person failed for contact {$contactId}: " . ($result['data']['message'] ?? $result['raw']));
+    }
 }
 
 function zoho_find_or_create_contact(string $accessToken, string $name, string $email, string $phone): string

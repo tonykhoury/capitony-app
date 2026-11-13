@@ -3,7 +3,7 @@
 // they're served from, so placing this file here (rather than at the
 // site root) keeps it from ever touching the public customer-facing site.
 
-const CACHE_NAME = 'capitony-captain-v1';
+const CACHE_NAME = 'capitony-captain-v2';
 const APP_SHELL = [
   '/captain/dashboard.php',
   '/assets/css/app.css',
@@ -58,6 +58,15 @@ self.addEventListener('fetch', function (event) {
           });
         })
     );
+    return;
+  }
+
+  // Dynamic endpoints (chat-poll.php, live-viewers-data.php, any other
+  // .php or query-string request) must ALWAYS go to the network. Caching
+  // them cache-first froze the captain's chat: each poll URL's first
+  // response was replayed forever, so viewer messages never showed up.
+  var url = new URL(req.url);
+  if (url.origin !== self.location.origin || url.pathname.endsWith('.php') || url.search) {
     return;
   }
 
